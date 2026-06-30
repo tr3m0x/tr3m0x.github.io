@@ -1,7 +1,7 @@
 ---
 title: "HTB: Fireflow"
 description: Full Writeup for Fireflow machine from HTB
-date: 2024-06-01
+date: 2026-06-26
 tags:
   - hackthebox
   - linux
