@@ -1,5 +1,4 @@
 ---
-import Logo from "@/assets/logo.svg"
 import ThemeToggle from "@/components/ThemeToggle.astro"
 import { NAVIGATION, SITE } from "@/consts"
 import { normalizePath } from "@/lib/utils"
@@ -16,7 +15,7 @@ const section = NAVIGATION.find(
 <aside data-bar>
   <sidebar-inner>
     <a href="/" aria-label={SITE.title}>
-      <Logo />
+      <img src="/avatar.png" alt={SITE.title} class="avatar" />
       <span>{SITE.title}</span>
     </a>
     <nav>
@@ -100,10 +99,12 @@ const section = NAVIGATION.find(
       color: var(--foreground);
       text-decoration-line: none;
 
-      svg {
+      .avatar {
         inline-size: 1.125rem;
         block-size: 1.125rem;
         flex-shrink: 0;
+        border-radius: var(--radius-full);
+        object-fit: cover;
       }
 
       @media (width < 26rem) {

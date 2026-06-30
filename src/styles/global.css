@@ -1,0 +1,9 @@
+:root {
+  --primary: oklch(0.75 0.15 175);       /* teal — your accent */
+}
+
+[data-theme='dark'] {
+  --background: oklch(0.08 0.01 220);    /* deep dark */
+  --foreground: oklch(0.85 0.02 200);    /* soft white text */
+  --primary: oklch(0.72 0.18 175);       /* bioluminescent teal */
+}

@@ -2,86 +2,56 @@
 import MetaPost from "@/components/MetaPost.astro"
 import PostActions from "@/components/PostActions.astro"
 import ScrollToTop from "@/components/ScrollToTop.astro"
-import SeriesReader from "@/components/SeriesReader.astro"
 import TableOfContents from "@/components/TableOfContents.astro"
 import Layout from "@/layouts/Layout.astro"
-import { getPosts, getSubposts, pageTitle } from "@/lib/content"
-import { formatDate, isSubpost, subpostSlug } from "@/lib/utils"
+import { getPosts, pageTitle } from "@/lib/content"
+import { formatDate } from "@/lib/utils"
 import { Image } from "astro:assets"
 import { getEntries, render, type CollectionEntry } from "astro:content"
 
 export async function getStaticPaths() {
   const posts = await getPosts()
-  const series = await getSubposts()
-  return posts.flatMap((parent, i) => {
-    const chain = [parent, ...(series.get(parent.id) ?? [])]
-    return chain.map((post) => ({
-      params: { id: post.id },
-      props: { post, chain, prev: posts[i + 1], next: posts[i - 1] },
-    }))
-  })
+  return posts.map((post) => ({
+    params: { id: post.id },
+    props: { post },
+  }))
 }
 
 type Props = {
   post: CollectionEntry<"blog">
-  chain: CollectionEntry<"blog">[]
-  prev?: CollectionEntry<"blog">
-  next?: CollectionEntry<"blog">
 }
 
-const { post, chain, prev, next } = Astro.props
-const [parent] = chain
-const rendered = await Promise.all(
-  chain.map(async (entry) => ({
-    entry,
-    ...(await render(entry)),
-    authors: await getEntries(entry.data.authors),
-  })),
-)
+const { post } = Astro.props
+const rendered = await render(post)
+const authors = await getEntries(post.data.authors)
 
-const sections = rendered.map(({ entry, headings }, i) => ({
-  id: i === 0 ? undefined : subpostSlug(entry.id),
-  label: entry.data.title,
-  open: entry.id === post.id,
-  headings: headings.filter(
-    ({ depth, text }) => depth >= 2 && depth <= 4 && text.trim(),
-  ),
-}))
-const hasToc =
-  sections.length > 1 || sections.some(({ headings }) => headings.length > 0)
+const sections = [
+  {
+    id: undefined,
+    label: post.data.title,
+    open: true,
+    headings: rendered.headings.filter(
+      ({ depth, text }) => depth >= 2 && depth <= 4 && text.trim(),
+    ),
+  },
+]
+const hasToc = sections.some(({ headings }) => headings.length > 0)
 
-const crumbs = [{ label: parent.data.title, href: `/blog/${parent.id}` }]
-if (isSubpost(post.id)) {
-  crumbs.push({ label: post.data.title, href: `/blog/${post.id}` })
-}
+const crumbs = [{ label: post.data.title, href: `/blog/${post.id}` }]
 ---
 
 <Layout crumbs={crumbs}>
-  <MetaPost
-    slot="head"
-    post={post}
-    canonical={isSubpost(post.id) ? `/blog/${parent.id}` : undefined}
-  />
+  <MetaPost slot="head" post={post} />
   {hasToc && (
-      <TableOfContents
-        slot="toc"
-        title={parent.data.title}
-        sections={sections}
-      />
+      <TableOfContents slot="toc" title={post.data.title} sections={sections} />
     )}
-  <PostActions slot="actions" prev={prev} next={next} />
+  <PostActions slot="actions" />
   <ScrollToTop floating />
-  {rendered.map(({ entry, Content, authors }, i) => (
-      <article
-        id={i === 0 ? undefined : subpostSlug(entry.id)}
-        data-url={`/blog/${entry.id}`}
-        data-title={pageTitle(entry.data.title)}
-        data-embedded={i > 0 || undefined}
-      >
-        <header>
-          <h1>{entry.data.title}</h1>
-          <post-meta>
-            {authors.length > 0 && (
+  <article data-url={`/blog/${post.id}`} data-title={pageTitle(post.data.title)}>
+    <header>
+      <h1>{post.data.title}</h1>
+      <post-meta>
+        {authors.length > 0 && (
               <post-authors>
                 <author-avatars>
                   {authors.map((author) => (
@@ -100,36 +70,34 @@ if (isSubpost(post.id)) {
                 </author-names>
               </post-authors>
             )}
-            <time datetime={entry.data.date.toISOString()}
-              >{formatDate(entry.data.date)}</time
+            <time datetime={post.data.date.toISOString()}
+              >{formatDate(post.data.date)}</time
             >
-            {entry.data.tags && (
+            {post.data.tags && (
               <post-tags>
-                {entry.data.tags.map((tag) => (
+                {post.data.tags.map((tag) => (
                   <a href={`/tags/${tag}`}>#{tag}</a>
                 ))}
               </post-tags>
             )}
           </post-meta>
-          <p>{entry.data.description}</p>
+          <p>{post.data.description}</p>
         </header>
-        {entry.data.image && (
+        {post.data.image && (
           <post-banner>
             <Image
-              src={entry.data.image}
-              alt={entry.data.title}
+              src={post.data.image}
+              alt={post.data.title}
               width={1200}
               height={630}
-              priority={entry.id === post.id || undefined}
+              priority
             />
           </post-banner>
         )}
         <prose-content>
-          <Content />
+          <rendered.Content />
         </prose-content>
       </article>
-    ))}
-  {chain.length > 1 && <SeriesReader />}
 </Layout>
 
 <style>

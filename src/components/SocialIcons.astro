@@ -1,45 +1,85 @@
 ---
+import Email from "@/assets/icons/email.svg"
+import GitHub from "@/assets/icons/github.svg"
+import Globe from "@/assets/icons/globe.svg"
+import Link from "@/assets/icons/link.svg"
+import Twitter from "@/assets/icons/twitter.svg"
 import type { SvgComponent } from "astro/types"
 
-type Props = { links: { href: string; label: string; icon: SvgComponent }[] }
+type SocialLink = {
+  href: string
+  label: string
+  icon?: SvgComponent
+}
+
+type Props = { links: SocialLink[] }
 
 const { links } = Astro.props
+
+const ICONS: Record<string, { icon: SvgComponent }> = {
+  github: { icon: GitHub },
+  linkedin: { icon: Link },
+  email: { icon: Email },
+  website: { icon: Globe },
+  twitter: { icon: Twitter },
+}
 ---
 
 <ul>
-  {links.map(({ href, label, icon: Icon }) => (
-      <li>
-        <a
-          href={href}
-          data-icon-button
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={label}
-          title={label}
-        >
-          <Icon aria-hidden="true" />
-        </a>
-      </li>
-    ))}
+  {links.map(({ href, label, icon }) => {
+      const key = label.toLowerCase()
+      const Icon = icon ?? ICONS[key]?.icon
+      return (
+        <li>
+          <a
+            href={href}
+            data-icon-button
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={label}
+            title={label}
+          >
+            {Icon ? <Icon aria-hidden="true" /> : <span class="fallback">{label}</span>}
+          </a>
+        </li>
+      )
+    })}
 </ul>
 
 <style>
   ul {
     display: flex;
-    margin-inline: -0.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0;
+    margin: 0;
+    margin-block-start: 0.5rem;
+    list-style: none;
+  }
 
-    li a {
-      color: var(--muted-foreground);
-      text-decoration: none;
+  li {
+    display: flex;
+  }
 
-      &:hover {
-        color: var(--foreground);
-      }
+  li a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted-foreground);
+    text-decoration: none;
 
-      svg {
-        width: 1.125rem;
-        height: 1.125rem;
-      }
+    &:hover {
+      color: var(--foreground);
     }
+
+    svg {
+      width: 1.125rem;
+      height: 1.125rem;
+    }
+  }
+
+  .fallback {
+    font-size: 0.85rem;
+    white-space: nowrap;
   }
 </style>

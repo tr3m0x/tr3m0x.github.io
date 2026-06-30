@@ -12,7 +12,7 @@ import { headingNamespace } from "./src/lib/heading-namespace"
 import { headingAnchors } from "./src/lib/heading-anchors"
 
 export default defineConfig({
-  site: "https://astro-erudite.vercel.app",
+  site: "https://tr3m0x.github.io",
   compressHTML: true,
   prefetch: { prefetchAll: true },
   integrations: [

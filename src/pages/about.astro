@@ -1,0 +1,18 @@
+---
+import Layout from "@/layouts/Layout.astro"
+import MetaPage from "@/components/MetaPage.astro"
+import AboutContent from "../content/pages/about.md"
+---
+
+<Layout>
+  <MetaPage slot="head" title={"About"} description={"About"} />
+  <prose-content>
+    <AboutContent />
+  </prose-content>
+</Layout>
+
+<style>
+  prose-content {
+    display: block;
+  }
+</style>

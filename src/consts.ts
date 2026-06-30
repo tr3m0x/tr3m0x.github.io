@@ -1,27 +1,25 @@
-import type { SvgComponent } from "astro/types"
-import Email from "@/assets/icons/email.svg"
-import GitHub from "@/assets/icons/github.svg"
-import RSS from "@/assets/icons/rss.svg"
-import Twitter from "@/assets/icons/twitter.svg"
+import type { Site, NavigationLink, SocialLink } from "./types"
 
-export const SITE = {
-  title: "astro-erudite",
-  description: "An opinionated, unstyled blogging template built with Astro.",
-  locale: "en-US",
-  dir: "ltr",
-  defaultPageImage: "/static/opengraph-image.png",
-  defaultPostImage: "/static/1200x630.png",
-} as const
+export const SITE: Site = {
+  title: 'tr3m0x',
+  description: 'Writeups, CTF solutions, and cheatsheets.',
+  href: 'https://tr3m0x.github.io',
+  featuredPostCount: 3,
+  postsPerPage: 10,
+  locale: 'en-US', 
+  dir: 'ltr',
+  defaultPageImage: '/default-og-page.png',
+  defaultPostImage: '/default-og-post.png',
+}
 
-export const NAVIGATION = [
-  { href: "/blog", label: "Blog" },
-  { href: "/projects", label: "Projects" },
-  { href: "/authors", label: "Authors" },
+export const NAVIGATION: NavigationLink[] = [
+  { href: '/blog', label: 'blog' },
+  { href: '/tags', label: 'tags' },
+  { href: '/about', label: 'about' },
 ]
 
-export const SOCIALS: { href: string; label: string; icon: SvgComponent }[] = [
-  { href: "https://github.com/jktrn", label: "GitHub", icon: GitHub },
-  { href: "https://twitter.com/enscrbe", label: "Twitter", icon: Twitter },
-  { href: "mailto:jason@enscribe.dev", label: "Email", icon: Email },
-  { href: "/rss.xml", label: "RSS", icon: RSS },
+export const SOCIALS: SocialLink[] = [
+  { href: 'https://github.com/tr3m0x', label: 'GitHub' },
+  { href: 'https://linkedin.com/in/leithgritli', label: 'LinkedIn' },
+  { href: 'mailto:leithgritli999@gmail.com', label: 'Email' },
 ]
