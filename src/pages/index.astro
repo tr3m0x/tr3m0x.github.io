@@ -14,8 +14,8 @@ const posts = (await getPosts()).slice(0, 3)
       <p class="eyebrow">Security notes · writeups · research</p>
       <h1>Hi, I’m tr3m0x.</h1>
       <p class="intro">
-        I’m a final-year ICT Engineering student and pentester focused on practical web
-        security, Linux exploitation, and useful notes.
+        I’m a final-year ICT Engineering student and pentester focused on
+        practical web security, Linux exploitation, and useful notes.
       </p>
       <div class="actions">
         <a href="/about">About me</a>
@@ -83,7 +83,9 @@ const posts = (await getPosts()).slice(0, 3)
       border-radius: var(--radius-full);
       color: var(--foreground);
       text-decoration: none;
-      transition: background-color 160ms ease, border-color 160ms ease;
+      transition:
+        background-color 160ms ease,
+        border-color 160ms ease;
 
       &:hover {
         background-color: var(--muted);

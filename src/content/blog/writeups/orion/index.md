@@ -1,5 +1,6 @@
 ---
 title: "HTB: Orion"
+category: writeups
 description: Full Writeup for Orion machine from HTB
 date: 2026-06-30
 tags:

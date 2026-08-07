@@ -1,5 +1,6 @@
 ---
 title: "HTB: Fireflow"
+category: writeups
 description: Full Writeup for Fireflow machine from HTB
 date: 2026-06-26
 tags:

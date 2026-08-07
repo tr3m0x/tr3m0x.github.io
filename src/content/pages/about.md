@@ -3,16 +3,17 @@ title: "About"
 description: "Who is tr3m0x?"
 ---
 
-I'm a final-year ICT Engineering student, pentester, and red teamer specializing in web exploitation,application security and Linux security.
+I am a cybersecurity engineering student focused on offensive security. My primary areas of research and practical application include penetration testing, red teaming
 
-I actively participate on HackTheBox and TryHackMe, compete in Capture The Flag (CTF) competitions, and publish writeups, tooling notes, and practical research.
+operations, web application exploitation, and Active Directory environments. I am continuously expanding my technical toolkit and theoretical knowledge to uncover 
 
-This blog is a professional notebook: exploit writeups, post-mortems, and concise cheatsheets designed to be immediately useful for engineers and defenders.
+vulnerabilities and understand complex attack vectors.
 
 ## Skills
-- Web exploitation · Linux security · Vulnerability assessment 
-- Binary exploitation · Reverse engineering
-- Network pentesting · Active Directory
+- WebApp Security 
+- Linux Security 
+- Vulnerability Assessment
+- Python/Js/C  Scripting 
 
 ## Profiles
 - HackTheBox: [tr3m0x](https://app.hackthebox.com/users/2147799) — Pro Hacker rank

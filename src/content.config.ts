@@ -25,6 +25,7 @@ const blog = defineCollection({
   schema: ({ image }) =>
     z.object({
       title: z.string(),
+      category: z.enum(["writeups", "articles"]).optional(),
       description: z.string(),
       date: z.coerce.date(),
       order: z.number().optional(),
@@ -33,6 +34,21 @@ const blog = defineCollection({
       image: image().optional(),
       draft: z.boolean().optional(),
     }),
+})
+
+const cheatsheets = defineCollection({
+  loader: glob({
+    pattern: "**/[^_]*.md",
+    base: "./src/content/cheatsheets",
+  }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    date: z.coerce.date(),
+    pdf: z.string(),
+    tags: z.array(z.string()).optional(),
+    draft: z.boolean().optional(),
+  }),
 })
 
 const projects = defineCollection({
@@ -52,4 +68,4 @@ const projects = defineCollection({
     }),
 })
 
-export const collections = { blog, authors, projects }
+export const collections = { blog, authors, cheatsheets, projects }

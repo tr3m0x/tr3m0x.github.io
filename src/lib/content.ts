@@ -5,8 +5,19 @@ export const pageTitle = (title: string) => `${title} | ${SITE.title}`
 
 export async function getPosts(): Promise<CollectionEntry<"blog">[]> {
   const posts = await getCollection("blog", ({ data }) => !data.draft)
-  return posts
-    .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  return posts.sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+}
+
+export async function getCheatsheets(): Promise<
+  CollectionEntry<"cheatsheets">[]
+> {
+  const cheatsheets = await getCollection(
+    "cheatsheets",
+    ({ data }) => !data.draft,
+  )
+  return cheatsheets.sort(
+    (a, b) => b.data.date.getTime() - a.data.date.getTime(),
+  )
 }
 
 export async function getTags(): Promise<
