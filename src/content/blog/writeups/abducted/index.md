@@ -6,6 +6,8 @@ date: 2026-08-08
 tags:
   - hackthebox
   - linux
+  - smb
+  - CVE-2026-4480
 authors:
   - tr3m0x
 image: ./assets/cover.png
