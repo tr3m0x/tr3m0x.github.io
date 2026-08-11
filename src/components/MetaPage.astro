@@ -36,3 +36,19 @@ const ogImage = new URL(SITE.defaultPageImage, base)
 <meta name="twitter:description" content={description}>
 <meta name="twitter:image" content={ogImage}>
 <meta name="twitter:image:alt" content={ogTitle}>
+
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: ogTitle,
+    description: description,
+    url: canonical.href,
+    isPartOf: {
+      "@type": "WebSite",
+      name: SITE.title,
+      url: SITE.href,
+    },
+  })}
+/>

@@ -1,0 +1,100 @@
+---
+import BlogCard from "@/components/BlogCard.astro"
+import MetaPage from "@/components/MetaPage.astro"
+import Layout from "@/layouts/Layout.astro"
+import { getPosts } from "@/lib/content"
+
+export async function getStaticPaths() {
+  const posts = await getPosts()
+  const subcategories = Array.from(
+    new Set(
+      posts
+        .filter((post) => post.id.startsWith("writeups/"))
+        .map((post) => {
+          const parts = post.id.split("/")
+          return parts.length > 2 ? parts[1] : "other"
+        }),
+    ),
+  )
+  return subcategories.map((subcat) => ({
+    params: { subcategory: subcat },
+  }))
+}
+
+const { subcategory } = Astro.params
+const posts = await getPosts()
+
+// Helper to extract subcategory from post.id
+const getSubcategory = (id: string) => {
+  const parts = id.split("/")
+  if (parts.length > 2) {
+    return parts[1] // e.g. "htb", "pentest"
+  }
+  return "other"
+}
+
+const subcategoryMeta: Record<string, { title: string; description: string }> =
+  {
+    htb: {
+      title: "Hack The Box",
+      description:
+        "Detailed walkthroughs and writeups for Hack The Box machines and challenges.",
+    },
+    thm: {
+      title: "TryHackMe",
+      description: "Walkthroughs and guides for TryHackMe rooms and paths.",
+    },
+    "bug-bounty": {
+      title: "Bug Bounty",
+      description:
+        "Writeups, summaries, and analyses of bug bounty findings and reports.",
+    },
+    pentest: {
+      title: "Pentest Findings",
+      description:
+        "Detailed writeups of findings, vulnerabilities, and techniques from penetration testing engagements.",
+    },
+    other: {
+      title: "Other Writeups",
+      description: "General security writeups and miscellaneous walkthroughs.",
+    },
+  }
+
+const writeups = posts.filter(
+  (post) =>
+    post.id.startsWith("writeups/") && getSubcategory(post.id) === subcategory,
+)
+
+const meta = subcategoryMeta[subcategory] || {
+  title: subcategory.toUpperCase(),
+  description: `${subcategory.toUpperCase()} writeups and walkthroughs.`,
+}
+
+const crumbs = [
+  { label: "Blog", href: "/blog" },
+  { label: "Writeups", href: "/blog/writeups" },
+  { label: meta.title, href: `/blog/writeups/${subcategory}` },
+]
+---
+
+<Layout crumbs={crumbs}>
+  <MetaPage
+    slot="head"
+    title={`${meta.title} Writeups`}
+    description={meta.description}
+  />
+  <ul>
+    {writeups.map((post) => <BlogCard post={post} />)}
+  </ul>
+</Layout>
+
+<style>
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-m);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+</style>

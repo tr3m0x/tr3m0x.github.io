@@ -16,7 +16,10 @@ const authors = await getEntries(post.data.authors)
       </a>
     )}
   <entry-info>
-    <a href={`/blog/${post.id}`}>{post.data.title}</a>
+    <a href={`/blog/${post.id}`}
+      >{post.data.title}
+      {post.data.draft && <span class="draft-badge">DRAFT</span>}</a
+    >
     <entry-meta>
       {authors.length > 0 && (
           <entry-authors>
@@ -134,6 +137,19 @@ const authors = await getEntries(post.data.authors)
       p {
         color: var(--muted-foreground);
       }
+    }
+
+    .draft-badge {
+      display: inline-block;
+      margin-inline-start: var(--space-3xs);
+      padding: 0.1em 0.5em;
+      font-size: var(--step--2);
+      font-weight: var(--font-weight-medium);
+      color: #f59e0b;
+      border: 1px solid #f59e0b;
+      border-radius: var(--radius-s);
+      vertical-align: middle;
+      text-decoration: none;
     }
 
     @media (width < 40rem) {

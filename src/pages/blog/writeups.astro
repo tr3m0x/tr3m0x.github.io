@@ -1,11 +1,79 @@
 ---
-import BlogCard from "@/components/BlogCard.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
 import { getPosts } from "@/lib/content"
 
 const posts = await getPosts()
 const writeups = posts.filter((post) => post.id.startsWith("writeups/"))
+
+// Helper to extract subcategory from post.id
+const getSubcategory = (id: string) => {
+  const parts = id.split("/")
+  if (parts.length > 2) {
+    return parts[1] // e.g. "htb", "pentest"
+  }
+  return "other"
+}
+
+const subcategoryMeta: Record<string, { title: string; description: string }> =
+  {
+    htb: {
+      title: "Hack The Box",
+      description:
+        "Detailed walkthroughs and writeups for Hack The Box machines and challenges.",
+    },
+    thm: {
+      title: "TryHackMe",
+      description: "Walkthroughs and guides for TryHackMe rooms and paths.",
+    },
+    "bug-bounty": {
+      title: "Bug Bounty",
+      description:
+        "Writeups, summaries, and analyses of bug bounty findings and reports.",
+    },
+    pentest: {
+      title: "Pentest Findings",
+      description:
+        "Detailed writeups of findings, vulnerabilities, and techniques from penetration testing engagements.",
+    },
+    other: {
+      title: "Other Writeups",
+      description: "General security writeups and miscellaneous walkthroughs.",
+    },
+  }
+
+// Group and count posts by subcategory
+const counts = writeups.reduce(
+  (acc, post) => {
+    const subcat = getSubcategory(post.id)
+    acc[subcat] = (acc[subcat] || 0) + 1
+    return acc
+  },
+  {} as Record<string, number>,
+)
+
+// We want to list all subcategories that actually contain writeups
+const activeSubcategories = Object.keys(counts).sort((a, b) => {
+  const order = ["htb", "thm", "bug-bounty", "pentest", "other"]
+  const indexA = order.indexOf(a)
+  const indexB = order.indexOf(b)
+  const valA = indexA === -1 ? 999 : indexA
+  const valB = indexB === -1 ? 999 : indexB
+  return valA - valB
+})
+
+const categories = activeSubcategories.map((subcat) => {
+  const meta = subcategoryMeta[subcat] || {
+    title: subcat.toUpperCase(),
+    description: `${subcat.toUpperCase()} writeups and walkthroughs.`,
+  }
+  return {
+    slug: subcat,
+    title: meta.title,
+    description: meta.description,
+    count: counts[subcat],
+  }
+})
 
 const crumbs = [
   { label: "Blog", href: "/blog" },
@@ -20,7 +88,15 @@ const crumbs = [
     description="Detailed walkthroughs and writeups for CTF challenges, Hack The Box machines, and security challenges."
   />
   <ul>
-    {writeups.map((post) => <BlogCard post={post} />)}
+    {categories.map((category) => (
+      <li>
+        <a href={`/blog/writeups/${category.slug}`}>
+          <strong>{category.title}</strong>
+          <p>{category.description}</p>
+          <small>{category.count} {category.count === 1 ? "writeup" : "writeups"}</small>
+        </a>
+      </li>
+    ))}
   </ul>
 </Layout>
 
@@ -32,5 +108,32 @@ const crumbs = [
     list-style: none;
     padding: 0;
     margin: 0;
+  }
+
+  li a {
+    display: block;
+    padding: var(--space-m);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-m);
+    color: var(--foreground);
+    text-decoration: none;
+    transition:
+      border-color 150ms ease,
+      transform 150ms ease;
+  }
+
+  li a:hover {
+    border-color: var(--foreground);
+    transform: translateY(-1px);
+  }
+
+  strong {
+    display: block;
+    margin-bottom: var(--space-3xs);
+  }
+
+  p,
+  small {
+    color: var(--muted-foreground);
   }
 </style>

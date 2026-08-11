@@ -45,3 +45,34 @@ const ogImage = image
 
 <meta property="article:published_time" content={date.toISOString()}>
 {authorNames.map((name) => <meta property="article:author" content={name} />)}
+
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: title,
+    description: description,
+    datePublished: date.toISOString(),
+    url: url.href,
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": canonical.href,
+    },
+    image: ogImage.href,
+    author: authors.map((a) => ({
+      "@type": "Person",
+      name: a.data.name,
+    })),
+    publisher: {
+      "@type": "Person",
+      name: SITE.title,
+      url: SITE.href,
+    },
+    isPartOf: {
+      "@type": "WebSite",
+      name: SITE.title,
+      url: SITE.href,
+    },
+  })}
+/>

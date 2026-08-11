@@ -61,5 +61,21 @@ import { SITE } from "@/consts"
       document.documentElement.dataset.theme = theme
   </script>
 
+  <script
+    type="application/ld+json"
+    set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: SITE.title,
+      url: SITE.href,
+      description: SITE.description,
+      publisher: {
+        "@type": "Person",
+        name: SITE.title,
+        url: SITE.href,
+      },
+    })}
+  />
+
   <slot />
 </head>

@@ -10,6 +10,9 @@ const writeupsCount = posts.filter((post) =>
 const articlesCount = posts.filter((post) =>
   post.id.startsWith("articles/"),
 ).length
+const cveAnalysisCount = posts.filter((post) =>
+  post.id.startsWith("cve-analysis/"),
+).length
 
 const categories = [
   {
@@ -18,6 +21,13 @@ const categories = [
     description:
       "Walkthroughs and detailed writeups for CTF challenges, Hack The Box machines, and other security platforms.",
     count: writeupsCount,
+  },
+  {
+    slug: "cve-analysis",
+    title: "CVE Analysis",
+    description:
+      "Detailed analysis, reproducing, and writing PoCs for Common Vulnerabilities and Exposures (CVEs).",
+    count: cveAnalysisCount,
   },
   {
     slug: "articles",
