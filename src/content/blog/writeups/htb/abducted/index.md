@@ -145,7 +145,7 @@ nobody@abducted:/var/spool/samba$
 The system had two non-root users with interactive shells: `scott` and `marcus`.
 
 ```bash
-nobody@abducted:/opt/offsite-backup$ cat /etc/passwd | grep bash
+nobody@abducted:/var/spool/samba$ cat /etc/passwd | grep bash
 root:x:0:0:root:/root:/bin/bash
 scott:x:1000:1001:Scott Mercer:/home/scott:/bin/bash
 marcus:x:1001:1002:Marcus Vale:/home/marcus:/bin/bash
