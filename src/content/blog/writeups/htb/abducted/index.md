@@ -2,7 +2,7 @@
 title: "HTB: Abducted"
 category: writeups
 description: Full writeup for the Abducted machine from HTB
-date: 2026-08-08
+date: 2026-06-08
 tags:
   - hackthebox
   - linux
