@@ -8,6 +8,9 @@ tags:
   - linux
   - web
   - easy
+  - WordPress
+  - CVE-2019-17671
+  - CVE-2021-3560
 authors:
   - tr3m0x
 image: ./assets/cover.png
