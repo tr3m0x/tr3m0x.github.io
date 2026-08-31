@@ -20,7 +20,8 @@ difficulty: Very Easy
 The first step is to identify which services are exposed on the target. A full TCP scan helps determine the attack surface before any deeper inspection.
 
 ```bash
-tr3m0x@blackhat$ sudo nmap -sC -sV -p- -T4 --min-rate 1000 -oN nmap/tcp_scan 10.129.136.9
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ sudo nmap -sC -sV -p- -T4 --min-rate 1000 -oN nmap/tcp_scan 10.129.136.9
 # Nmap 7.95 scan initiated Sun Aug 30 16:47:25 2026 as: nmap -sC -sV -p- -T4 --min-rate 1000 -oN nmap/tcp_scan 10.129.136.9
 Nmap scan report for 10.129.136.9
 Host is up (0.62s latency).

