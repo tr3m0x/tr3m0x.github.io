@@ -2,7 +2,7 @@
 title: "HTB: Trick"
 category: writeups
 description: Full Writeup for Trick machine from CWES track on HackTheBox
-date: 2026-05-18
+date: 2026-01-14
 tags:
   - hackthebox
   - linux
