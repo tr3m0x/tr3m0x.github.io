@@ -7,12 +7,13 @@ type Props = { post: CollectionEntry<"blog"> }
 
 const { post } = Astro.props
 const authors = await getEntries(post.data.authors)
+const showDescription = post.id.includes('/htb/') || post.id.includes('/thm/')
 ---
 
 <li>
   {post.data.image && (
       <a href={`/blog/${post.id}`} tabindex="-1" aria-hidden="true">
-        <Image src={post.data.image} alt="" width={640} height={336} />
+        <Image src={post.data.image} alt="" width={640} height={360} />
       </a>
     )}
   <entry-info>
@@ -51,7 +52,9 @@ const authors = await getEntries(post.data.authors)
           </entry-tags>
         )}
     </entry-meta>
-    <p>{post.data.description}</p>
+    {showDescription && post.data.description && (
+      <p>{post.data.description}</p>
+    )}
   </entry-info>
 </li>
 
@@ -63,22 +66,33 @@ const authors = await getEntries(post.data.authors)
 
     > a {
       flex-shrink: 0;
-      inline-size: 14rem;
+      inline-size: 15rem;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      border-radius: var(--radius-s);
 
       :global(img) {
         inline-size: 100%;
-        block-size: auto;
+        block-size: 100%;
+        object-fit: cover;
       }
     }
 
     entry-info {
       display: flex;
       flex-direction: column;
+      gap: var(--space-3xs);
+      flex: 1;
+      min-inline-size: 0;
 
       > a {
         font-size: var(--step-1);
-        line-height: calc(var(--leading-offset) + 1em);
+        line-height: 1.3;
         font-weight: var(--font-weight-medium);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
       }
 
       entry-meta {
@@ -86,7 +100,6 @@ const authors = await getEntries(post.data.authors)
         flex-wrap: wrap;
         align-items: center;
         gap: var(--space-3xs);
-        margin-block-end: var(--space-3xs);
         font-size: var(--step--1);
         color: var(--muted-foreground);
 
@@ -136,6 +149,13 @@ const authors = await getEntries(post.data.authors)
 
       p {
         color: var(--muted-foreground);
+        margin: 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        font-size: var(--step--1);
+        line-height: 1.4;
       }
     }
 

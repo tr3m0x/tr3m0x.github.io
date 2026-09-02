@@ -396,7 +396,7 @@ Success! I obtained a shell as the `michael` user through the LFI + PHP method.
 
 ### Method 2: LFI + Private SSH Key (The Easier Way)
 
-Alternatively, and more elegantly, I could have obtained Michael's private SSH key directly through the LFI vulnerability. Since the web application runs as `michael`, I had direct access to read `/home/michael/.ssh/id_rsa`. This approach was simpler and more reliable than setting up a reverse shell.
+Alternatively, and more elegantly, I could have obtained Michael's private SSH key directly through the LFI vulnerability. I had direct access to read `/home/michael/.ssh/id_rsa`. This approach was simpler and more reliable than setting up a reverse shell.
 
 Using the LFI vulnerability, I accessed the private key:
 
