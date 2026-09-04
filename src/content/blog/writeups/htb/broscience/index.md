@@ -2,7 +2,7 @@
 title: "HTB: BroScience"
 category: writeups
 description: Full Writeup for BroScience machine from CWES track on HackTheBox
-date: 2026-05-19
+date: 2026-09-04
 tags:
   - hackthebox
   - linux
