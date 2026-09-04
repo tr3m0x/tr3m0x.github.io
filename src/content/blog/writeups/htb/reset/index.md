@@ -126,7 +126,7 @@ Connection received on 10.129.234.130 56810
 $ 
 ```
 
-### Shell as www-data
+### Shell as `www-data`
 
 After stabilizing my shell, I checked the current directory.
 
@@ -241,7 +241,7 @@ There's the user flag, along with a **.rhosts** file. That, combined with the op
 
 ## Lateral Movement
 
-### Shell as sadm
+### Shell as `sadm`
 
 On my own machine, I created a local user also named `sadm` and tried to `rlogin` into the target as that user. It worked, without a password.
 

