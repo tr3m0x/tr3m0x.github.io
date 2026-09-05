@@ -33,7 +33,7 @@ jobs:
         with:
           path: _site
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.repository == 'tr3m0x/tr3m0x.github.io'
     needs: build
     runs-on: ubuntu-latest
     permissions:

@@ -32,7 +32,7 @@ image: /assets/img/posts/slug/cover.png
 
 Store screenshots in `assets/img/posts/slug/` and reference them using absolute paths. New posts use `/posts/slug/`; migrated posts have explicit permalinks preserving their original `/blog/writeups/.../` URLs. Set `published: false` to hide an unfinished post. Liquid processing is disabled for posts so security payloads such as `{{7*7}}` remain literal; use Markdown for images and links.
 
-Edit `_config.yml` for site settings, `_data/contact.yml` for social links, and `_tabs/` for navigation pages. Add PDFs to `static/cheatsheets/htb/` and link them from `cheatsheets/htb.md`. The RSS feed stays at `/rss.xml`.
+Edit `_config.yml` for site settings, `_data/contact.yml` for social links, and `_tabs/` for navigation pages. Add PDFs to `static/cheatsheets/htb/` and link them from `cheatsheets/htb.md`. The RSS feed stays at `/rss.xml`. The default social preview, `static/opengraph-image.png`, is a 1200×630 screenshot of the homepage. After replacing it, update the `?v=` suffix in `social_preview_image` to refresh the image URL for sharing services. Posts retain their own cover images.
 
 ## Validation and deployment
 
