@@ -1,8 +1,7 @@
 ---
 title: Cross-Tenant Information Disclosure via Mutable Identifier Mapping
-description: A multi-tenant HR platform's insecure authorization mechanism allowed
-  cross-tenant information disclosure by mapping employee profiles to mutable business
-  identifiers.
+description: During a penetration testing engagement as part of my internship, I found
+  cross-tenant information disclosure in an HR platform through mutable employee identifiers.
 date: 2026-07-10
 tags:
 - broken-access-control
@@ -18,9 +17,9 @@ permalink: /blog/writeups/pentest/cross-tenant-info-disclosure/
 last_modified_at: '2026-09-02T08:10:32+01:00'
 ---
 
-During a recent penetration testing engagement, a high-severity vulnerability was identified in an HR management application. The vulnerability allowed cross-tenant information disclosure due to an insecure authorization mechanism that mapped user profiles to a mutable employee identifier.
+During a penetration testing engagement as part of my internship, I found a high-severity vulnerability in an HR management application. The vulnerability allowed cross-tenant information disclosure due to an insecure authorization mechanism that mapped user profiles to a mutable employee identifier.
 
-This article details the mechanics of the vulnerability, an exploitation walkthrough with anonymized HTTP requests/responses, the root cause, and remediation strategies.
+In this writeup, I explain how I found and reproduced the vulnerability, walk through anonymized HTTP requests and responses, and share my root cause analysis and remediation recommendations.
 
 ---
 
@@ -38,7 +37,7 @@ This article details the mechanics of the vulnerability, an exploitation walkthr
 
 The target application features a multi-tenant architecture designed to host employee profiles and payroll details for multiple distinct organizations. Administrators within a tenant can manage employee records and modify various attributes, including the employee business identifier (referred to as the `employee_id` or matricule).
 
-The core vulnerability lies in the `/api/self-service/profile` API endpoint. Instead of using a secure, immutable relation (such as an internal database primary key or session token claim) to resolve the authenticated user's profile, the application resolves profiles dynamically using the mutable business identifier.
+I found the core vulnerability in the `/api/self-service/profile` API endpoint. Instead of using a secure, immutable relation (such as an internal database primary key or session token claim) to resolve the authenticated user's profile, the application resolves profiles dynamically using the mutable business identifier.
 
 As a result, if an administrator changes an employee's identifier to the identifier of a record belonging to another employee (either in the same company or a different company/tenant), the associated self-service endpoint begins disclosing the profile of the target employee. This allows arbitrary association of employee accounts with target profiles, breaking both user-level and tenant-level isolation boundaries.
 
@@ -61,11 +60,11 @@ Because employee identifiers follow a predictable, sequential convention (e.g., 
 
 ## Attack Scenario & Exploitation Walkthrough
 
-To demonstrate the vulnerability, we walk through an attack scenario where an administrator of **Company A** access details of **Company B**'s employees.
+To demonstrate the vulnerability, I used an administrator account in **Company A** to modify an employee account I controlled, then accessed an employee profile belonging to **Company B** through that account.
 
 ### Step 1: Modifying the Employee Identifier
 
-The administrator of **Company A** modifies a controlled employee account (`EMP-9998`) and sets its identifier (`new_employee_id`) to `EMP-0001` (an identifier belonging to an employee at **Company B**).
+Using the administrator account in **Company A**, I modified an employee account I controlled (`EMP-9998`) and set its identifier (`new_employee_id`) to `EMP-0001`, an identifier belonging to an employee at **Company B**.
 
 **Request:**
 
@@ -175,11 +174,11 @@ Vary: Origin
 }
 ```
 
-The server returns a `200 OK` status and successfully maps the controlled employee record to the new identifier `EMP-0001`.
+I received a `200 OK` response confirming that the server had mapped the employee record I controlled to the new identifier `EMP-0001`.
 
 ### Step 2: Authenticating as the Controlled User
 
-Next, the attacker logs in using the credentials of the controlled employee account (`user@example.com`) whose mapping was modified. The JWT payload for this session resolves to:
+Next, I logged in using the credentials of the employee account I controlled (`user@example.com`), whose mapping I had just modified. The JWT payload for my session was:
 
 ```json
 {
@@ -190,7 +189,7 @@ Next, the attacker logs in using the credentials of the controlled employee acco
 
 ### Step 3: Accessing the Self-Service Portal
 
-The authenticated user makes a request to the self-service endpoint `/api/self-service/profile`.
+With that employee session, I sent a request to the self-service endpoint `/api/self-service/profile`.
 
 **Request:**
 
@@ -250,13 +249,13 @@ Connection: keep-alive
 }
 ```
 
-As shown, instead of retrieving Jane Doe's profile (the user who logged in), the API returns the profile of **John Doe** (`john.doe@example.com`), which belongs to a completely different company tenant (`company_id: <COMPANY_ID_2>`).
+I expected to receive Jane Doe's profile, since I was logged in with that account. Instead, the API returned the profile of **John Doe** (`john.doe@example.com`), belonging to a different company tenant (`company_id: <COMPANY_ID_2>`). This confirmed the cross-tenant disclosure.
 
 ---
 
 ## Root Cause Analysis
 
-The root cause of this vulnerability lies in the design of the mapping relation:
+My analysis pointed to the design of the profile mapping as the root cause:
 
 1. **Mapping to a Mutable Identifier:** The application maps the session principal (`sub: user@example.com`) to the corresponding profile database record using the user-configurable field `employee_id`. Since this field is mutable, changing it breaks the association integrity.
 2. **Lack of Immutable Keys:** Ownership authorization checks should rely on non-editable keys (e.g. database UUIDs) that are generated internally and cannot be manipulated by users or administrators.
@@ -266,7 +265,7 @@ The root cause of this vulnerability lies in the design of the mapping relation:
 
 ## Remediation & Mitigation
 
-To secure the application against this vulnerability, the following changes are recommended:
+To address this vulnerability, I recommend the following changes:
 
 - **Bind Accounts with Immutable Keys:** Associate user authentication accounts with employee records using internal, read-only identifiers (e.g., auto-incremented integers or UUIDs) rather than business identifiers.
 - **Remove User-Controlled Mapping Modifiability:** Business identifiers (matricules) should only serve display purposes and should not be used as query parameter lookup keys or routing variables in authorization contexts.

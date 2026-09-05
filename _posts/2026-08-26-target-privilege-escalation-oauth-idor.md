@@ -1,8 +1,8 @@
 ---
 title: Default Hidden Permission Grant Leading to Self-Privilege Escalation & OAuth
   Token Disclosure
-description: Default hidden user management permission enabled self-privilege escalation
-  and an IDOR exposing Super Admin OAuth tokens.
+description: During a penetration testing engagement as part of my internship, I found
+  a hidden permission that enabled self-privilege escalation and disclosure of Super Admin OAuth tokens.
 date: 2026-08-26
 tags:
 - broken-access-control
@@ -19,20 +19,21 @@ permalink: /blog/writeups/pentest/target-privilege-escalation-oauth-idor/
 last_modified_at: '2026-09-02T08:10:32+01:00'
 ---
 
-During a penetration testing engagement targeting **target.com**, a critical chain of access control vulnerabilities was discovered. 
+During a penetration testing engagement as part of my internship, I found a critical chain of access control vulnerabilities in **target.com**.
 
-A single default backend flaw—the implicit grant of the hidden `"createEditDeleteUsers": true` permission to newly invited accounts—served as the catalyst for two major security breaches:
+I traced both findings to a default backend flaw: newly invited accounts received the hidden `"createEditDeleteUsers": true` permission. This permission enabled two forms of access control bypass:
 
 1. **Self-Privilege Escalation:** Low-privileged users (such as Project Managers or Employees) could modify their own profile attributes via `PUT /api/team` to elevate their role to `"admin"` (Super Admin level).
 2. **IDOR & OAuth Token Disclosure:** The same user management privilege allowed lower-privileged accounts to issue `PUT /api/team` requests targeting the Super Administrator profile, triggering an IDOR response that leaked sensitive third-party Google Drive and Google Calendar OAuth access and refresh tokens.
 
-This writeup details the methodology, vulnerability chain, proof-of-concept exploits, root causes, and remediation guidance for these findings.
+In this writeup, I explain how I investigated the permission flaw, reproduced both findings, and analyzed their root causes. I also share the remediation measures I recommend.
 
 ---
 
 ## Executive Summary & Engagement Overview
 
 * **Penetration Tester:** Laith Gritli (`tr3m0x`)
+* **Engagement Context:** Penetration testing during my internship.
 * **Target Application:** `target.com`
 * **Testing Period:** 10/08/2026 – 26/08/2026
 * **Environment Tested:** Pre-Production / Staging
@@ -63,7 +64,7 @@ This writeup details the methodology, vulnerability chain, proof-of-concept expl
 +-----------------------------------------------+ +-----------------------------------------------+
 ```
 
-The underlying weakness in the application's RBAC model stems from a failure to adhere to the principle of least privilege. When an organization's owner or Super Admin provisions a new team account, the UI presents granular toggle switches for various permissions. However, behind the scenes, the backend hardcodes `"createEditDeleteUsers": true` into every new user record by default. 
+While reviewing the application's RBAC model, I found that its default permissions did not follow the principle of least privilege. When an organization's owner or Super Admin provisions a new team account, the UI presents granular toggle switches for various permissions. However, behind the scenes, the backend hardcodes `"createEditDeleteUsers": true` into every new user record by default.
 
 Because the backend relies solely on `createEditDeleteUsers` to authorize requests to `PUT /api/team` without verifying **who** is being modified or **what** roles are being granted, any user can:
 - Elevate their own profile to full administrative status (Finding 1).
@@ -84,7 +85,7 @@ Because the backend relies solely on `createEditDeleteUsers` to authorize reques
 
 ### Description
 
-When an administrator invites or provisions a new team member (such as an Admin or Project Manager) through the application, granular access permissions can be configured via the user interface. Even if all optional permissions are disabled during the invitation workflow to enforce the principle of least privilege, the backend application automatically assigns and forces the `"createEditDeleteUsers": true` permission by default.
+I started by testing the invitation workflow for new team members. The interface let me configure granular permissions, but I found that even with every optional permission disabled, newly invited accounts still received `"createEditDeleteUsers": true` by default.
 
 This permission is neither displayed nor toggleable within the frontend user management interface. Consequently, any newly invited account—regardless of how restricted their intended profile is—is silently endowed with user-management privileges.
 
@@ -108,11 +109,11 @@ Changing `systemAccessRole` to `"admin"` grants the user administrative privileg
 
 ### Attack Scenario
 
-1. A Super Administrator invites a new team member with the `Project Manager` role, explicitly disabling all granular permissions in the frontend interface.
-2. The backend processes the invitation request (`POST /api/team/invite`) and automatically inserts `"createEditDeleteUsers": true` into the user's permission object.
-3. The invited user completes account setup and authenticates to `target.com`.
-4. Using their valid session, the user sends a `PUT /api/team` request specifying their own user ID, setting `"systemAccessRole": "admin"` and enabling all permission flags (`viewPayRate`, `modifyScheduleAnyUser`, `viewReportsAll`, `viewEmployeesGps`, etc.).
-5. The backend validates that the user possesses `createEditDeleteUsers: true` and applies the update without verifying whether the user is authorized to elevate their own role, successfully promoting them to full `admin` status on par with a Super Administrator.
+1. Using the Super Administrator account, I invited a new team member with the `Project Manager` role and disabled all optional permissions in the interface.
+2. I noticed that the invitation request (`POST /api/team/invite`) still included `"createEditDeleteUsers": true` in the permission object.
+3. I completed account setup and logged in to `target.com` as the invited user.
+4. Using that session, I sent a `PUT /api/team` request with my test account's user ID, set `"systemAccessRole": "admin"`, and enabled all permission flags (`viewPayRate`, `modifyScheduleAnyUser`, `viewReportsAll`, `viewEmployeesGps`, etc.).
+5. I received a successful response showing that my test account had been promoted to `admin`. The backend had accepted the self-elevation without enforcing the expected role restrictions.
 
 ---
 
@@ -120,7 +121,7 @@ Changing `systemAccessRole` to `"admin"` grants the user administrative privileg
 
 #### Step 1 — Invite a restricted user via the management dashboard
 
-The Super Administrator sends an invitation request with all granular permissions explicitly toggled off in the frontend.
+Using the Super Administrator account, I sent an invitation with all optional permissions toggled off in the interface.
 
 **Request**
 
@@ -168,13 +169,13 @@ Referer: https://target.com/team
 }
 ```
 
-> **Note:** The `"createEditDeleteUsers": true` field is automatically injected by default in the payload despite no user-management permissions being selected in the UI.
+> **Note:** I noticed that the payload included `"createEditDeleteUsers": true` even though I had not selected any user-management permissions in the interface.
 
 ---
 
 #### Step 2 — Authenticate as the invited user and escalate role & permissions
 
-Once registered, the newly created user authenticates and submits a `PUT /api/team` request to modify their own profile, elevating `"systemAccessRole"` to `"admin"` and setting all administrative permission flags to `true`.
+After registering, I logged in as the invited user and sent a `PUT /api/team` request targeting my test account. I changed `"systemAccessRole"` to `"admin"` and set all administrative permission flags to `true`.
 
 **Request**
 
@@ -231,7 +232,7 @@ Referer: https://target.com/team
 
 #### Step 3 — Verify successful role & permission escalation
 
-The backend accepts the request and returns an HTTP `200 OK` response with `systemAccessRole: "admin"` and all permissions active.
+I verified the escalation in the HTTP `200 OK` response: the backend returned `systemAccessRole: "admin"` with all permissions active.
 
 **Response**
 
@@ -306,6 +307,8 @@ X-Xss-Protection: 1; mode=block
 
 ### Recommendations
 
+I recommend the following changes to address this finding:
+
 - **Apply Least Privilege by Default:** Set `"createEditDeleteUsers"` to `false` by default for all newly created roles unless explicitly assigned by an authorized Super Administrator.
 - **Prevent Self-Permission & Role Modification:** Enforce server-side checks preventing users from editing their own permission flags or elevating their own role/`systemAccessRole`.
 - **Enforce Hierarchical RBAC:** Ensure that a user cannot assign permissions or roles that exceed their own verified authorization scope.
@@ -325,9 +328,9 @@ X-Xss-Protection: 1; mode=block
 
 ### Description
 
-Due to the implicit grant of `"createEditDeleteUsers": true` on new team accounts, any user with team-management permissions (such as a Manager/Admin) can issue arbitrary update requests to `PUT /api/team`.
+I then investigated whether the same hidden `"createEditDeleteUsers": true` permission allowed a lower-privileged account to target other users through `PUT /api/team`.
 
-When submitting a `PUT /api/team` payload targeting the identifier of the organization's Super Administrator (`"id": "owner-<SUPER_ADMIN_UID>"`), the backend fails to validate whether the caller has authorization to modify or inspect owner-level records. The authorization check does not enforce a privilege hierarchy, allowing lower-privileged users to access higher-privileged resources. In the resulting HTTP `200 OK` response body, the API serializes and discloses the entire Super Administrator account object, including sensitive third-party OAuth access and refresh credentials for integrated services such as Google Drive and Google Calendar.
+I sent a `PUT /api/team` payload targeting the organization's Super Administrator (`"id": "owner-<SUPER_ADMIN_UID>"`) and found that the backend accepted the request without checking whether my test account could access owner-level records. The authorization check does not enforce a privilege hierarchy, allowing lower-privileged users to access higher-privileged resources. In the resulting HTTP `200 OK` response body, the API serializes and discloses the entire Super Administrator account object, including sensitive third-party OAuth access and refresh credentials for integrated services such as Google Drive and Google Calendar.
 
 ---
 
@@ -341,17 +344,19 @@ When submitting a `PUT /api/team` payload targeting the identifier of the organi
 
 ### Attack Scenario
 
-1. An invited Manager or Team Admin account (not Super Admin) authenticates to `target.com` with `createEditDeleteUsers: true` permission.
-2. The user identifies the Super Administrator's identifier (`owner-<SUPER_ADMIN_UID>`) from API enumeration.
-3. The user sends a `PUT /api/team` request with the owner's ID as the target.
-4. The server processes the request without validating the privilege hierarchy and returns the full Super Administrator record containing active Google Drive and Google Calendar OAuth tokens.
-5. The attacker uses the disclosed OAuth tokens to access the owner's Google Drive files, Google Calendar, and linked cloud resources.
+1. I logged in to `target.com` with an invited, lower-privileged account that had `createEditDeleteUsers: true`.
+2. I identified the Super Administrator's identifier (`owner-<SUPER_ADMIN_UID>`) through API enumeration.
+3. I sent a `PUT /api/team` request targeting the owner's ID.
+4. I received the full Super Administrator record, including the Google Drive and Google Calendar OAuth token fields, despite using a lower-privileged account.
+5. I identified the disclosure as a risk to the owner's connected cloud services. The response shown below contains encrypted token values; accessing those services would also require usable credentials.
 
 ---
 
 ### Steps to Reproduce
 
 #### Step 1 — Submit a `PUT /api/team` request targeting the Owner record
+
+I used the lower-privileged account's session to send the following request with the owner's identifier.
 
 **Request**
 
@@ -373,6 +378,8 @@ Referer: https://target.com/team
 ---
 
 #### Step 2 — Intercept response containing OAuth tokens and owner secrets
+
+I inspected the successful response and found owner-level account details and OAuth token fields that should not have been returned to my test account.
 
 **Response**
 
@@ -446,6 +453,8 @@ X-Xss-Protection: 1; mode=block
 
 ### Recommendations
 
+I recommend the following changes to address this finding:
+
 1. **Implement Strict Authorization Checks:** Enforce a privilege hierarchy that prevents lower-privileged roles from accessing or modifying higher-privileged records. Owner accounts (`owner-*`) should only be accessible to the account owner or system administrators with explicit owner-level permissions.
 2. **Sanitize API Responses:** Implement field-level filtering in the API serialization layer to exclude sensitive fields (`google_drive_access_token`, `google_drive_refresh_token`, `google_calendar_access_token`, `google_calendar_refresh_token`, and similar credential fields) from all API responses by default.
 3. **Separate Secret Storage:** Move OAuth tokens, API keys, and other third-party credentials to a dedicated, encrypted credentials vault with strict access control policies. Implement a separate service or endpoint for credential access that enforces stricter authorization and logging.
@@ -456,6 +465,6 @@ X-Xss-Protection: 1; mode=block
 
 ## Key Takeaways
 
-This assessment of `target.com` highlights how a seemingly innocuous backend default setting (`createEditDeleteUsers: true`) can completely undermine an application's authorization architecture. 
+During this internship engagement, I found that a single default permission (`createEditDeleteUsers: true`) could undermine the application's authorization model. Following that permission through the API led me to both self-privilege escalation and disclosure of owner-level account data.
 
 By failing to apply default-deny principles during user invitation and omitting privilege hierarchy checks on sensitive API endpoints like `PUT /api/team`, the system allowed low-privileged users to escalate themselves to full Super Admin operational control and extract sensitive third-party OAuth tokens belonging to the organization owner.
