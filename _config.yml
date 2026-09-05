@@ -40,7 +40,7 @@ pageviews:
 theme_mode: null
 cdn: null
 avatar: /avatar.png
-social_preview_image: /static/opengraph-image.png?v=d46c8e2dc8d0
+social_preview_image: /avatar.png
 toc: true
 actions:
   edit_post:
