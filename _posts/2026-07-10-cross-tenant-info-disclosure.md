@@ -1,7 +1,6 @@
 ---
 title: Cross-Tenant Information Disclosure via Mutable Identifier Mapping
-description: During a penetration testing engagement as part of my internship, I found
-  cross-tenant information disclosure in an HR platform through mutable employee identifiers.
+description: A cross-tenant information disclosure vulnerability in an HR platform through mutable employee identifiers.
 date: 2026-07-10
 tags:
 - broken-access-control

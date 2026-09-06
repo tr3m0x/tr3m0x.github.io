@@ -1,8 +1,7 @@
 ---
 title: Default Hidden Permission Grant Leading to Self-Privilege Escalation & OAuth
   Token Disclosure
-description: During a penetration testing engagement as part of my internship, I found
-  a hidden permission that enabled self-privilege escalation and disclosure of Super Admin OAuth tokens.
+description: A hidden permission that enabled self-privilege escalation and disclosure of Super Admin OAuth tokens.
 date: 2026-08-26
 tags:
 - broken-access-control
@@ -30,16 +29,6 @@ In this writeup, I explain how I investigated the permission flaw, reproduced bo
 
 ---
 
-## Executive Summary & Engagement Overview
-
-* **Penetration Tester:** Laith Gritli (`tr3m0x`)
-* **Engagement Context:** Penetration testing during my internship.
-* **Target Application:** `target.com`
-* **Testing Period:** 10/08/2026 – 26/08/2026
-* **Environment Tested:** Pre-Production / Staging
-* **Report Scope:** Anonymized penetration test report focusing on authorization flaws within `target.com`.
-
----
 
 ## Vulnerability Chain Analysis
 
