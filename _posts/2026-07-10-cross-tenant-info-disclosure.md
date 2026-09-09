@@ -10,7 +10,7 @@ tags:
 image: /assets/img/posts/cross-tenant-info-disclosure/cover.png
 categories:
 - Writeups
-- Pentest
+- Web Security
 author: tr3m0x
 permalink: /blog/writeups/pentest/cross-tenant-info-disclosure/
 last_modified_at: '2026-09-02T08:10:32+01:00'
