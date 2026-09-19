@@ -16,6 +16,7 @@ difficulty: Medium
 categories:
 - Writeups
 - Hack The Box
+- CWES
 author: tr3m0x
 permalink: /blog/writeups/htb/broscience/
 last_modified_at: '2026-09-04T16:58:44+01:00'

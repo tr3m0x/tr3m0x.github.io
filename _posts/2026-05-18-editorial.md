@@ -16,6 +16,7 @@ difficulty: Easy
 categories:
 - Writeups
 - Hack The Box
+- CWES
 author: tr3m0x
 permalink: /blog/writeups/htb/editorial/
 last_modified_at: '2026-09-04T12:04:05+01:00'
